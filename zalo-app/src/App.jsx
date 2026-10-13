@@ -21,6 +21,7 @@ import {
   recordVoiceCommandLog,
   subscribeDeviceRealtime
 } from './supabaseService';
+import { SUPABASE_SCHEMA_SQL } from './supabaseSchema';
 
 function App() {
   const [isListening, setIsListening] = useState(false);
@@ -43,6 +44,7 @@ function App() {
   const [supabasePingResult, setSupabasePingResult] = useState('');
   const [isTestingSupabase, setIsTestingSupabase] = useState(false);
   const [isSupabaseOnline, setIsSupabaseOnline] = useState(() => isSupabaseConfigured());
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   // Cấu hình IoT ESP32
   const [iotEndpoint, setIotEndpoint] = useState(() => getIotConfig().endpoint);
@@ -950,7 +952,7 @@ function App() {
                       className="form-text-input"
                       value={supabaseUrl}
                       onChange={(e) => {
-                        const val = e.target.value;
+                        const val = e.target.value.trim().replace(/\/+$/, '');
                         setSupabaseUrl(val);
                         saveSupabaseConfig({ url: val, anonKey: supabaseAnonKey });
                       }}
@@ -964,7 +966,7 @@ function App() {
                       className="form-text-input"
                       value={supabaseAnonKey}
                       onChange={(e) => {
-                        const val = e.target.value;
+                        const val = e.target.value.trim();
                         setSupabaseAnonKey(val);
                         saveSupabaseConfig({ url: supabaseUrl, anonKey: val });
                       }}
@@ -978,12 +980,18 @@ function App() {
                     type="button"
                     className="form-action-btn full-width"
                     onClick={async () => {
+                      const cleanUrl = supabaseUrl.trim().replace(/\/+$/, '');
+                      const cleanKey = supabaseAnonKey.trim();
+                      setSupabaseUrl(cleanUrl);
+                      setSupabaseAnonKey(cleanKey);
+                      saveSupabaseConfig({ url: cleanUrl, anonKey: cleanKey });
+
                       setIsTestingSupabase(true);
                       setSupabasePingResult('Đang kiểm tra kết nối Supabase...');
                       try {
-                        const res = await testSupabaseConnection({ url: supabaseUrl, anonKey: supabaseAnonKey });
+                        const res = await testSupabaseConnection({ url: cleanUrl, anonKey: cleanKey });
                         setSupabasePingResult(res.message);
-                        if (res.success) {
+                        if (res.success && !res.tableMissing) {
                           setIsSupabaseOnline(true);
                           fetchDevicesFromSupabase().then((serverDevices) => {
                             if (serverDevices && serverDevices.length > 0) {
@@ -995,6 +1003,8 @@ function App() {
                               );
                             }
                           });
+                        } else if (res.tableMissing) {
+                          setIsSupabaseOnline(true);
                         } else {
                           setIsSupabaseOnline(false);
                         }
@@ -1024,6 +1034,19 @@ function App() {
                     <li>Vào <strong>Project Settings &gt; API</strong>: copy <strong>Project URL</strong> và <strong>anon public key</strong> dán vào 2 ô trên.</li>
                     <li>Vào mục <strong>SQL Editor</strong> &gt; dán toàn bộ file <code>supabase_schema.sql</code> và bấm <strong>Run</strong>.</li>
                   </ol>
+                  <button
+                    type="button"
+                    className={`copy-sql-btn ${sqlCopied ? 'copied' : ''}`}
+                    onClick={() => {
+                      if (navigator?.clipboard?.writeText) {
+                        navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
+                      }
+                      setSqlCopied(true);
+                      setTimeout(() => setSqlCopied(false), 3000);
+                    }}
+                  >
+                    {sqlCopied ? '✅ Đã sao chép SQL! Hãy dán vào SQL Editor trên Supabase' : '📋 Sao chép mã SQL (supabase_schema.sql)'}
+                  </button>
                 </div>
               </div>
 
