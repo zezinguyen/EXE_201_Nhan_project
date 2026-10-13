@@ -9,6 +9,18 @@ import {
   testMicrophone,
   startAudioCapture
 } from './audioCaptureManager';
+import {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  isSupabaseConfigured,
+  testSupabaseConnection
+} from './supabaseClient';
+import {
+  fetchDevicesFromSupabase,
+  syncDeviceToSupabase,
+  recordVoiceCommandLog,
+  subscribeDeviceRealtime
+} from './supabaseService';
 
 function App() {
   const [isListening, setIsListening] = useState(false);
@@ -18,12 +30,19 @@ function App() {
   const [actionToast, setActionToast] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  // Danh sách 3 thiết bị trong nhà (Quạt, Điều hòa, TV) - Bỏ đèn theo yêu cầu
+  // Danh sách 3 thiết bị trong nhà (Quạt, Điều hòa, TV)
   const [devices, setDevices] = useState([
     { id: 'fan', name: 'Quạt', active: false, statusText: 'Đã tắt' },
     { id: 'ac', name: 'Điều hòa', active: false, statusText: 'Đã tắt' },
     { id: 'tv', name: 'TV', active: false, statusText: 'Đã tắt' }
   ]);
+
+  // Cấu hình Supabase Backend
+  const [supabaseUrl, setSupabaseUrl] = useState(() => getSupabaseConfig().url);
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState(() => getSupabaseConfig().anonKey);
+  const [supabasePingResult, setSupabasePingResult] = useState('');
+  const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [isSupabaseOnline, setIsSupabaseOnline] = useState(() => isSupabaseConfigured());
 
   // Cấu hình IoT ESP32
   const [iotEndpoint, setIotEndpoint] = useState(() => getIotConfig().endpoint);
@@ -85,21 +104,33 @@ function App() {
     setTimeout(() => setActionToast(''), 4000);
   };
 
-  // Cập nhật trạng thái bật/tắt thiết bị
-  const updateDeviceState = (deviceId, shouldBeActive, customStatus = null) => {
+  // Cập nhật trạng thái bật/tắt thiết bị & đồng bộ Supabase
+  const updateDeviceState = (deviceId, shouldBeActive, customStatus = null, meta = {}) => {
+    const statusText = customStatus || (shouldBeActive ? 'Đang bật' : 'Đã tắt');
     setDevices((prev) =>
       prev.map((d) => {
         if (d.id === deviceId) {
-          const active = shouldBeActive;
           return {
             ...d,
-            active,
-            statusText: customStatus || (active ? 'Đang bật' : 'Đã tắt')
+            active: shouldBeActive,
+            statusText
           };
         }
         return d;
       })
     );
+
+    // Đồng bộ lên Supabase Database (nếu đã cấu hình)
+    syncDeviceToSupabase(deviceId, {
+      active: shouldBeActive,
+      statusText,
+      temp: meta.temp !== undefined ? meta.temp : (deviceId === 'ac' ? acTemp : undefined),
+      mode: meta.mode || 'cool',
+      brand: meta.brand || (deviceId === 'ac' ? iotAcBrandRef.current : undefined),
+      irCode: meta.irCode || '0x00000000'
+    }).then((ok) => {
+      if (ok) setIsSupabaseOnline(true);
+    }).catch(() => {});
   };
 
   // Bấm trực tiếp vào Card thiết bị để Bật/Tắt
@@ -116,6 +147,14 @@ function App() {
       };
       setParsedCommand(tvCmd);
       speakFeedback(tvCmd.title);
+      recordVoiceCommandLog({
+        transcript: tvCmd.title,
+        action: tvCmd.action,
+        title: tvCmd.title,
+        device: tvCmd.device,
+        irCode: tvCmd.irCode,
+        source: 'manual_tap'
+      }).catch(() => {});
       sendIotCommand(tvCmd, iotEndpointRef.current).then((res) => {
         if (res.success) {
           setIsIotOnline(true);
@@ -134,7 +173,15 @@ function App() {
       };
       setParsedCommand(acCmd);
       speakFeedback(acCmd.title);
-      updateDeviceState('ac', nextState, nextState ? `Đang bật (${acTemp}°C)` : 'Đã tắt');
+      updateDeviceState('ac', nextState, nextState ? `Đang bật (${acTemp}°C)` : 'Đã tắt', { temp: acTemp });
+      recordVoiceCommandLog({
+        transcript: acCmd.title,
+        action: acCmd.action,
+        title: acCmd.title,
+        device: 'ac',
+        irCode: '0x00000000',
+        source: 'manual_tap'
+      }).catch(() => {});
       sendIotCommand(acCmd, iotEndpointRef.current).then((res) => {
         if (res.success) {
           setIsIotOnline(true);
@@ -145,12 +192,28 @@ function App() {
       const actionName = `${nextState ? 'Bật' : 'Tắt'} ${device.name.toLowerCase()}`;
       speakFeedback(`Đã ${actionName}`);
       showNotification(`Đã ${actionName}`);
+      recordVoiceCommandLog({
+        transcript: actionName,
+        action: nextState ? 'FAN_POWER_ON' : 'FAN_POWER_OFF',
+        title: actionName,
+        device: 'fan',
+        irCode: '0x00000000',
+        source: 'manual_tap'
+      }).catch(() => {});
     }
   };
 
   // Gửi lệnh sang mạch ESP32
   const handleSendToIoT = async (cmd) => {
     if (!cmd || cmd.action === 'UNKNOWN') return;
+    recordVoiceCommandLog({
+      transcript: transcript || cmd.title,
+      action: cmd.action,
+      title: cmd.title,
+      device: cmd.device || 'Smart TV',
+      irCode: cmd.irCode || '0x00000000',
+      source: 'voice'
+    }).catch(() => {});
     try {
       const res = await sendIotCommand(cmd, iotEndpointRef.current);
       if (res.success) {
@@ -328,6 +391,47 @@ function App() {
         try { audioCaptureRef.current.abort(); } catch { }
       }
     };
+  }, []);
+
+  // Khởi tạo & Lắng nghe Realtime từ Supabase Backend
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      fetchDevicesFromSupabase().then((serverDevices) => {
+        if (serverDevices && serverDevices.length > 0) {
+          setIsSupabaseOnline(true);
+          setDevices((prev) =>
+            prev.map((d) => {
+              const remote = serverDevices.find((sd) => sd.id === d.id);
+              return remote
+                ? { ...d, active: remote.active, statusText: remote.statusText }
+                : d;
+            })
+          );
+          const acDevice = serverDevices.find((d) => d.id === 'ac');
+          if (acDevice && acDevice.temp) {
+            setAcTemp(acDevice.temp);
+          }
+        }
+      });
+
+      const unsubscribe = subscribeDeviceRealtime((updatedDevice) => {
+        setIsSupabaseOnline(true);
+        setDevices((prev) =>
+          prev.map((d) =>
+            d.id === updatedDevice.id
+              ? { ...d, active: updatedDevice.active, statusText: updatedDevice.statusText }
+              : d
+          )
+        );
+        if (updatedDevice.id === 'ac' && updatedDevice.temp) {
+          setAcTemp(updatedDevice.temp);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
   }, []);
 
   // Hàm thực thi kết quả phân tích từ Gemini AI
@@ -609,16 +713,21 @@ function App() {
         </div>
 
         <div className="header-actions">
+          <div className={`status-pill ${isSupabaseOnline ? 'online' : ''}`} title="Đồng bộ Cloud Supabase">
+            <span className="status-dot" />
+            <span>{isSupabaseOnline ? 'cloud sync' : 'local'}</span>
+          </div>
+
           <div className={`status-pill ${isIotOnline ? 'online' : ''}`} title="Trạng thái kết nối ESP32">
             <span className="status-dot" />
-            <span>online</span>
+            <span>{isIotOnline ? 'esp32' : 'offline'}</span>
           </div>
 
           <button
             type="button"
             className="header-icon-btn"
             onClick={() => setShowSettingsModal(true)}
-            aria-label="Cấu hình ESP32"
+            aria-label="Cài đặt hệ thống & Supabase"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -807,8 +916,8 @@ function App() {
           <div className="modal-dialog-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modal-header-row">
               <div className="modal-title-group">
-                <h3 className="modal-main-title">Cấu hình ESP32</h3>
-                <p className="modal-sub-desc">Kết nối thiết bị điều khiển hồng ngoại trong nhà</p>
+                <h3 className="modal-main-title">Cài đặt Hệ thống & Supabase</h3>
+                <p className="modal-sub-desc">Cơ sở dữ liệu đám mây Supabase & điều khiển thiết bị</p>
               </div>
               <button
                 type="button"
@@ -824,7 +933,101 @@ function App() {
             </div>
 
             <div className="modal-form-body">
-              {/* Địa chỉ IP ESP32 */}
+              {/* 1. Cấu hình Supabase Cloud Backend */}
+              <div className="form-group-item supabase-config-card">
+                <div className="form-item-header-row">
+                  <label className="form-item-label">Cơ sở dữ liệu Supabase (Cloud Backend)</label>
+                  <span className={`backend-status-tag ${isSupabaseOnline ? 'online' : 'offline'}`}>
+                    {isSupabaseOnline ? '🟢 Đã kết nối' : '⚪ Chưa kết nối'}
+                  </span>
+                </div>
+
+                <div className="form-vertical-inputs">
+                  <div className="input-with-label">
+                    <span className="input-micro-label">Project URL</span>
+                    <input
+                      type="text"
+                      className="form-text-input"
+                      value={supabaseUrl}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSupabaseUrl(val);
+                        saveSupabaseConfig({ url: val, anonKey: supabaseAnonKey });
+                      }}
+                      placeholder="https://xyzcompany.supabase.co"
+                    />
+                  </div>
+                  <div className="input-with-label">
+                    <span className="input-micro-label">Anon Public API Key</span>
+                    <input
+                      type="password"
+                      className="form-text-input"
+                      value={supabaseAnonKey}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSupabaseAnonKey(val);
+                        saveSupabaseConfig({ url: supabaseUrl, anonKey: val });
+                      }}
+                      placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    />
+                  </div>
+                </div>
+
+                <div className="form-control-row" style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    className="form-action-btn full-width"
+                    onClick={async () => {
+                      setIsTestingSupabase(true);
+                      setSupabasePingResult('Đang kiểm tra kết nối Supabase...');
+                      try {
+                        const res = await testSupabaseConnection({ url: supabaseUrl, anonKey: supabaseAnonKey });
+                        setSupabasePingResult(res.message);
+                        if (res.success) {
+                          setIsSupabaseOnline(true);
+                          fetchDevicesFromSupabase().then((serverDevices) => {
+                            if (serverDevices && serverDevices.length > 0) {
+                              setDevices((prev) =>
+                                prev.map((d) => {
+                                  const remote = serverDevices.find((sd) => sd.id === d.id);
+                                  return remote ? { ...d, active: remote.active, statusText: remote.statusText } : d;
+                                })
+                              );
+                            }
+                          });
+                        } else {
+                          setIsSupabaseOnline(false);
+                        }
+                      } catch (e) {
+                        setSupabasePingResult(`Lỗi: ${e.message}`);
+                        setIsSupabaseOnline(false);
+                      } finally {
+                        setIsTestingSupabase(false);
+                      }
+                    }}
+                    disabled={isTestingSupabase}
+                  >
+                    {isTestingSupabase ? 'Đang kiểm tra...' : '⚡ Kiểm tra kết nối Supabase'}
+                  </button>
+                </div>
+
+                {supabasePingResult && (
+                  <span className={`ping-status-note ${supabasePingResult.includes('thành công') ? 'success' : 'error'}`}>
+                    {supabasePingResult}
+                  </span>
+                )}
+
+                <div className="supabase-guide-box">
+                  <span className="guide-title">📌 Cách lấy thông tin Supabase (miễn phí):</span>
+                  <ol className="guide-steps">
+                    <li>Vào trang <strong>supabase.com</strong> đăng nhập &gt; bấm <strong>New Project</strong>.</li>
+                    <li>Vào <strong>Project Settings &gt; API</strong>: copy <strong>Project URL</strong> và <strong>anon public key</strong> dán vào 2 ô trên.</li>
+                    <li>Vào mục <strong>SQL Editor</strong> &gt; dán toàn bộ file <code>supabase_schema.sql</code> và bấm <strong>Run</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* 2. Địa chỉ IP ESP32 */}
               <div className="form-group-item">
                 <label className="form-item-label">Địa chỉ IP ESP32</label>
                 <div className="form-control-row">
