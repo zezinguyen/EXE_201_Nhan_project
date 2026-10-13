@@ -1,0 +1,32 @@
+{
+  "name": "zalo-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "login": "zmp login",
+    "deploy": "zmp deploy",
+    "start": "zmp start",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4",
+    "zmp-sdk": "^2.53.0",
+    "zmp-ui": "^1.11.14",
+    "zmp-vite-plugin": "^1.1.6"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.3"
+  }
+}

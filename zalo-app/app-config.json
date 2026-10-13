@@ -1,0 +1,18 @@
+{
+  "app": {
+    "title": "SmartHome TV Assistant",
+    "headerTitle": "SmartHome TV",
+    "headerColor": "#0f172a",
+    "textColor": {
+      "light": "white",
+      "dark": "white"
+    },
+    "statusBar": "transparent",
+    "actionBarHidden": false,
+    "hideIOSSafeAreaBottom": true,
+    "hideAndroidBottomNavigationBar": false
+  },
+  "listCSS": [],
+  "listSyncJS": [],
+  "listAsyncJS": []
+}

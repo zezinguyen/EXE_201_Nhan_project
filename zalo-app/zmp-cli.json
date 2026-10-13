@@ -1,0 +1,6 @@
+{
+  "name": "SmartHome TV",
+  "framework": "react",
+  "package": "zmp-ui",
+  "template": "single-view"
+}

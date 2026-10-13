@@ -1,0 +1,1028 @@
+/* ==========================================================================
+   SMART HOME APP - SENIOR UI/UX DESIGN SYSTEM FOR ELDERLY ACCESSIBILITY
+   Typography: Be Vietnam Pro
+   Color Palette: Minimal Deep Emerald & Sage Green
+   ========================================================================== */
+
+:root {
+  /* 1. Core Color System (Strict adherence to Senior UI/UX guidelines) */
+  --bg-primary: #F8FAF9;
+  --surface-card: #FFFFFF;
+  --primary-green: #176B50;
+  --soft-green: #E8F4ED;
+  --primary-text: #172B25;
+  --secondary-text: #64766D;
+  --subtle-border: #E3EBE6;
+  --disabled-state: #94A39B;
+  --shadow-soft: 0 4px 16px rgba(23, 43, 37, 0.05);
+  --shadow-mic: 0 10px 28px rgba(23, 107, 80, 0.22);
+  
+  /* 2. Typography Rules */
+  --font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: #EEF3F0;
+  color: var(--primary-text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ==========================================================================
+   APP CONTAINER (MAX WIDTH 420-440PX, COMPACT & BREATHABLE)
+   ========================================================================== */
+
+.app-viewport {
+  width: 100%;
+  max-width: 432px;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  box-shadow: 0 12px 48px rgba(23, 43, 37, 0.08);
+}
+
+@media (min-width: 480px) {
+  .app-viewport {
+    min-height: 94vh;
+    margin: 20px auto;
+    border-radius: 28px;
+    border: 1.5px solid var(--subtle-border);
+  }
+}
+
+/* ==========================================================================
+   1. HEADER REDESIGN (CLEAN, COMPACT, BALANCED)
+   ========================================================================== */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 12px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background-color: var(--soft-green);
+  color: var(--primary-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--primary-text);
+  letter-spacing: -0.2px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background-color: var(--surface-card);
+  border: 1px solid var(--subtle-border);
+  color: var(--secondary-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--disabled-state);
+}
+
+.status-pill.online {
+  color: var(--primary-green);
+  background-color: var(--soft-green);
+  border-color: rgba(23, 107, 80, 0.2);
+}
+
+.status-pill.online .status-dot {
+  background-color: var(--primary-green);
+  box-shadow: 0 0 6px rgba(23, 107, 80, 0.4);
+}
+
+.header-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--subtle-border);
+  background-color: var(--surface-card);
+  color: var(--secondary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-icon-btn:hover {
+  background-color: var(--soft-green);
+  color: var(--primary-green);
+  border-color: var(--primary-green);
+}
+
+/* Toast banner */
+.action-toast-banner {
+  margin: 0 24px 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background-color: var(--soft-green);
+  border: 1px solid rgba(23, 107, 80, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  animation: fadeInToast 0.25s ease;
+}
+
+@keyframes fadeInToast {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary-green);
+  line-height: 1.4;
+}
+
+.toast-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background-color: var(--primary-green);
+  padding: 4px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   2. MICROPHONE SECTION (VISUAL CENTERPIECE)
+   ========================================================================== */
+
+.mic-hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 24px 20px;
+  text-align: center;
+}
+
+/* Outer Ring (132px, Soft Green) */
+.mic-button-ring {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background-color: var(--soft-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
+}
+
+.mic-button-ring.listening {
+  background-color: #E2F0E7;
+  animation: gentlePulse 2s infinite ease-in-out;
+}
+
+@keyframes gentlePulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(23, 107, 80, 0.15); }
+  50% { transform: scale(1.04); box-shadow: 0 0 0 12px rgba(23, 107, 80, 0.08); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(23, 107, 80, 0.15); }
+}
+
+/* Inner Button (104px, Deep Emerald Green) */
+.mic-primary-btn {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background-color: var(--primary-green);
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-mic);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+}
+
+.mic-primary-btn:hover {
+  transform: scale(1.03);
+}
+
+.mic-primary-btn:active {
+  transform: scale(0.97);
+}
+
+.mic-primary-btn.listening {
+  background-color: var(--primary-green);
+}
+
+/* Status container & Headings */
+.mic-status-container {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mic-heading-title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--primary-text);
+  letter-spacing: -0.2px;
+}
+
+.mic-heading-title.listening {
+  color: var(--primary-green);
+}
+
+.mic-subtext {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--secondary-text);
+}
+
+/* Sound wave animation feedback - Real-time Audio Spectrum Equalizer */
+.sound-wave-bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3.5px;
+  height: 60px;
+  margin: 10px 0 8px;
+  padding: 6px 14px;
+  background: rgba(23, 107, 80, 0.04);
+  border-radius: 20px;
+  border: 1px solid rgba(23, 107, 80, 0.08);
+}
+
+.wave-bar {
+  width: 5px;
+  min-height: 6px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #10B981 0%, var(--primary-green) 100%);
+  transition: height 0.05s ease, opacity 0.06s ease;
+}
+
+.wave-bar.active-voice {
+  background: linear-gradient(180deg, #34D399 0%, #059669 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.mic-live-vol-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 99px;
+  background-color: var(--soft-green);
+  color: var(--primary-green);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-top: 4px;
+  border: 1px solid rgba(23, 107, 80, 0.15);
+  box-shadow: 0 2px 8px rgba(23, 107, 80, 0.06);
+}
+
+.mic-live-vol-pill.waiting-signal {
+  background-color: #F3F4F6;
+  color: #6B7280;
+  border-color: #E5E7EB;
+}
+
+.mini-vu-track {
+  width: 54px;
+  height: 6px;
+  border-radius: 99px;
+  background-color: rgba(23, 107, 80, 0.18);
+  overflow: hidden;
+  display: inline-block;
+  margin-left: 2px;
+}
+
+.mini-vu-bar {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #10B981, #059669);
+  transition: width 0.06s ease;
+}
+
+.live-vol-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--primary-green);
+  animation: pulseDot 1.2s infinite ease-in-out;
+}
+
+.mic-live-vol-pill.waiting-signal .live-vol-dot {
+  background-color: #9CA3AF;
+  animation: none;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.6; }
+}
+
+.modal-test-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--soft-green);
+  border-radius: 12px;
+  margin-top: 6px;
+}
+
+.modal-bars {
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  gap: 3px;
+}
+
+.modal-vol-readout {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-green);
+  white-space: nowrap;
+}
+
+.mic-transcript-quote {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-text);
+  background-color: var(--surface-card);
+  border: 1px solid var(--subtle-border);
+  padding: 8px 16px;
+  border-radius: 14px;
+  max-width: 340px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Section divider */
+.section-divider {
+  height: 1px;
+  background-color: var(--subtle-border);
+  margin: 12px 24px 24px;
+}
+
+/* ==========================================================================
+   3. DEVICE CARDS REDESIGN (4 CARDS, 2-COLUMN GRID, EXACT UNIFORMITY)
+   ========================================================================== */
+
+.devices-section {
+  padding: 0 24px 28px;
+}
+
+.section-heading {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--primary-text);
+  margin-bottom: 14px;
+  letter-spacing: -0.2px;
+}
+
+/* Clean 2-column grid with 12px gap for 3 devices (Quạt, Điều hòa, TV) */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.device-card-item {
+  background-color: var(--surface-card);
+  border: 1.5px solid var(--subtle-border);
+  border-radius: 18px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.device-card-item:hover {
+  transform: translateY(-2px);
+  border-color: #CBD9D1;
+  box-shadow: 0 6px 20px rgba(23, 43, 37, 0.08);
+}
+
+.device-card-item:active {
+  transform: scale(0.97);
+}
+
+/* Thẻ thiết bị hàng trên (Quạt & Điều hòa) */
+.device-card-item:not(.tv-card-span) {
+  min-height: 136px;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.device-card-item:not(.tv-card-span) .device-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.device-card-item:not(.tv-card-span) .device-info-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Thẻ TV trải rộng 2 cột hàng dưới, cân đối hoàn hảo */
+.device-card-item.tv-card-span {
+  grid-column: 1 / -1;
+  min-height: 84px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.device-card-item.tv-card-span .device-card-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.device-card-item.tv-card-span .device-info-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.tv-power-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 20px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--subtle-border);
+  color: var(--secondary-text);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.device-card-item.tv-card-span.active .tv-power-badge {
+  background-color: var(--primary-green);
+  border-color: var(--primary-green);
+  color: #FFFFFF;
+}
+
+/* Large, clear device icon (32px) */
+.device-icon-container {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--disabled-state);
+  transition: color 0.2s ease;
+}
+
+.device-svg-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.device-info-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Device names: 18px, weight 600 */
+.device-title-text {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--primary-text);
+}
+
+/* Device status: 15px, weight 500 */
+.device-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--secondary-text);
+}
+
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--disabled-state);
+}
+
+/* Active Device: Soft green background, Emerald icon, Clear text "Đang bật" */
+.device-card-item.active {
+  background-color: var(--soft-green);
+  border-color: var(--primary-green);
+}
+
+.device-card-item.active .device-icon-container {
+  color: var(--primary-green);
+}
+
+.device-card-item.active .device-title-text {
+  color: var(--primary-green);
+}
+
+.device-card-item.active .device-status-indicator {
+  color: var(--primary-green);
+  font-weight: 600;
+}
+
+.device-card-item.active .status-indicator-dot {
+  background-color: var(--primary-green);
+  box-shadow: 0 0 6px rgba(23, 107, 80, 0.5);
+}
+
+/* ==========================================================================
+   4. QUICK COMMAND SECTION ("LỆNH NHANH")
+   ========================================================================== */
+
+.quick-commands-section {
+  padding: 0 24px 32px;
+}
+
+.quick-chips-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.quick-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Command chips: 44px height for effortless elderly touch targets */
+.command-chip-btn {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 22px;
+  border: 1.5px solid var(--subtle-border);
+  background-color: var(--surface-card);
+  color: var(--primary-text);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.command-chip-btn:hover {
+  background-color: var(--soft-green);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+}
+
+.command-chip-btn:active {
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
+   5. ESP32 SETTINGS MODAL ("CẤU HÌNH ESP32")
+   ========================================================================== */
+
+.modal-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(23, 43, 37, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 999;
+}
+
+.modal-dialog-card {
+  width: 100%;
+  max-width: 432px;
+  background-color: var(--surface-card);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 24px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 -12px 40px rgba(23, 43, 37, 0.14);
+  animation: slideUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-top: 1.5px solid var(--subtle-border);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes slideUpModal {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--subtle-border);
+}
+
+.modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-main-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--primary-text);
+  letter-spacing: -0.2px;
+}
+
+.modal-sub-desc {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--secondary-text);
+}
+
+.modal-close-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--subtle-border);
+  background-color: var(--bg-primary);
+  color: var(--secondary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.modal-close-icon-btn:hover {
+  background-color: var(--soft-green);
+  color: var(--primary-green);
+  border-color: var(--primary-green);
+}
+
+.modal-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-item-label {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--primary-text);
+}
+
+.form-control-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Inputs and Dropdowns: 48px height for elderly accessibility */
+.form-text-input,
+.form-select-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--subtle-border);
+  background-color: var(--surface-card);
+  font-size: 15px;
+  color: var(--primary-text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-text-input:focus,
+.form-select-input:focus {
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(23, 107, 80, 0.12);
+}
+
+/* Action Buttons: 48px height */
+.form-action-btn {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: none;
+  background-color: var(--primary-green);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.form-action-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.form-action-btn:active {
+  transform: scale(0.97);
+}
+
+.form-action-btn.active-test {
+  background-color: #D9383A;
+}
+
+.ping-status-note {
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.ping-status-note.success {
+  color: var(--primary-green);
+}
+
+.ping-status-note.error {
+  color: #D9383A;
+}
+
+/* Switch Toggle Row */
+.form-switch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--subtle-border);
+  gap: 14px;
+}
+
+.switch-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--primary-text);
+}
+
+.switch-desc {
+  font-size: 13px;
+  color: var(--secondary-text);
+  line-height: 1.4;
+}
+
+.toggle-switch-control {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.toggle-switch-control input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #CBD9D1;
+  transition: 0.25s;
+  border-radius: 28px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #FFFFFF;
+  transition: 0.25s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(23, 43, 37, 0.15);
+}
+
+.toggle-switch-control input:checked + .toggle-slider {
+  background-color: var(--primary-green);
+}
+
+.toggle-switch-control input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Microphone Test Visualizer, Playback Card & Alerts */
+.modal-test-visualizer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 4px;
+}
+
+.modal-bars {
+  height: 36px;
+  justify-content: center;
+  gap: 3px;
+}
+
+.modal-vol-readout {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-green);
+  text-align: center;
+}
+
+.mic-muted-warning-alert {
+  background-color: #FEF2F2;
+  border: 1.5px solid #FCA5A5;
+  color: #B91C1C;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-top: 4px;
+  animation: pulseAlert 1.5s infinite;
+}
+
+@keyframes pulseAlert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.test-audio-playback-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--subtle-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 6px;
+}
+
+.test-playback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.test-playback-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.test-playback-clear-btn {
+  background: none;
+  border: none;
+  color: var(--secondary-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.test-playback-clear-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #D9383A;
+}
+
+.test-playback-audio-player {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.test-playback-hint {
+  font-size: 12px;
+  color: var(--secondary-text);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.mic-troubleshoot-guide {
+  background-color: rgba(23, 43, 37, 0.03);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mic-guide-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--secondary-text);
+}
+
+.mic-guide-list {
+  font-size: 12px;
+  color: var(--secondary-text);
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.mic-guide-list li {
+  margin-bottom: 3px;
+}
+
