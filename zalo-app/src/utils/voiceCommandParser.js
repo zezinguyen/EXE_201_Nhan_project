@@ -131,7 +131,10 @@ export function removeVietnameseTones(str) {
     .trim();
 }
 
-export function parseVoiceCommand(text) {
+/**
+ * Phân tích giọng nói với hỗ trợ Remote ảo (customRemotes) và Điều hòa (Specs 7.3)
+ */
+export function parseVoiceCommand(text, customRemotes = []) {
   if (!text || !text.trim()) {
     return null;
   }
@@ -139,7 +142,105 @@ export function parseVoiceCommand(text) {
   const lower = text.toLowerCase().trim();
   const noTone = removeVietnameseTones(lower);
 
-  // 0. Bóc tách kênh hoặc nội dung YouTube cụ thể
+  // 0. So khớp với các nút của Remote ảo tự tạo (voiceAliases) (Specs 7.3)
+  if (Array.isArray(customRemotes)) {
+    for (const remote of customRemotes) {
+      if (!remote.buttons || !Array.isArray(remote.buttons)) continue;
+      for (const btn of remote.buttons) {
+        const aliases = btn.voiceAliases || [];
+        const btnLabel = btn.label || '';
+        const match = aliases.some(alias => {
+          const aLower = alias.toLowerCase().trim();
+          const aNoTone = removeVietnameseTones(aLower);
+          return lower.includes(aLower) || noTone.includes(aNoTone);
+        }) || (btnLabel && (lower.includes(btnLabel.toLowerCase()) || noTone.includes(removeVietnameseTones(btnLabel))));
+
+        if (match) {
+          const irData = btn.ir || {
+            protocol: btn.protocol || 'NEC',
+            code: btn.irCode || btn.code || '0x00000000',
+            bits: btn.bits || 32
+          };
+          return {
+            action: btn.action || 'CUSTOM_ACTION',
+            title: btn.label || 'Nút tuỳ chỉnh',
+            deviceId: remote.deviceId || 'custom_device',
+            irCode: irData.code || '0x00000000',
+            ir: irData,
+            device: remote.name || 'Remote ảo',
+            icon: '✨',
+            description: `Khớp lệnh từ remote ảo [${remote.name}] - Nút: ${btn.label}`
+          };
+        }
+      }
+    }
+  }
+
+  // 1. Phân tích lệnh Điều hòa (AC Commands - Specs 6.2, Contracts 3.3)
+  const isAcMention = lower.includes('điều hòa') || lower.includes('dieu hoa') || 
+                      lower.includes('máy lạnh') || lower.includes('may lanh') ||
+                      lower.includes('máy điều hòa') || lower.includes('nhiệt độ');
+
+  if (isAcMention) {
+    // Tắt điều hòa
+    if (lower.includes('tắt') || lower.includes('tat') || lower.includes('đóng') || lower.includes('nghỉ')) {
+      return {
+        action: 'POWER_OFF',
+        title: 'Tắt điều hòa',
+        deviceId: 'ac_living',
+        device: 'Điều hòa (Hồng ngoại)',
+        power: false,
+        icon: '❄️',
+        description: 'Phát tín hiệu tắt điều hòa'
+      };
+    }
+
+    // Đặt nhiệt độ cụ thể (VD: "bật điều hòa 24 độ", "đặt 26 độ", "10 độ" -> kẹp 16-30 độ)
+    const tempMatch = lower.match(/(?:đặt|bật|cho|xuống|lên)?\s*(\d{1,2})\s*(?:độ|do|c)/i);
+    let targetTemp = 24;
+    if (tempMatch && tempMatch[1]) {
+      const parsedTemp = parseInt(tempMatch[1], 10);
+      if (parsedTemp < 16) {
+        targetTemp = 16;
+      } else if (parsedTemp > 30) {
+        targetTemp = 30;
+      } else {
+        targetTemp = parsedTemp;
+      }
+    }
+
+    // Chế độ (mode)
+    let acMode = 'cool';
+    if (lower.includes('hút ẩm') || lower.includes('kho') || lower.includes('dry')) acMode = 'dry';
+    else if (lower.includes('chế độ quạt') || lower.includes('chỉ quạt') || lower.includes('bật quạt điều hòa')) acMode = 'fan';
+    else if (lower.includes('sưởi') || lower.includes('nóng') || lower.includes('heat')) acMode = 'heat';
+    else if (lower.includes('tự động') || lower.includes('auto')) acMode = 'auto';
+
+    // Tốc độ quạt (fan speed)
+    let acFan = 'auto';
+    if (lower.includes('quạt mạnh') || lower.includes('gió mạnh') || lower.includes('quat manh') || lower.includes('gio manh') || lower.includes('quạt lớn') || lower.includes('fan high')) {
+      acFan = 'high';
+    } else if (lower.includes('quạt nhẹ') || lower.includes('gió nhẹ') || lower.includes('quat nhe') || lower.includes('gio nhe') || lower.includes('quạt êm') || lower.includes('quạt nhỏ') || lower.includes('fan low')) {
+      acFan = 'low';
+    } else if (lower.includes('quạt vừa') || lower.includes('gió vừa') || lower.includes('quat vua') || lower.includes('gio vua') || lower.includes('fan med')) {
+      acFan = 'med';
+    }
+
+    return {
+      action: 'SET',
+      title: `Bật điều hòa ${targetTemp}°C (${acMode})`,
+      deviceId: 'ac_living',
+      device: 'Điều hòa (Hồng ngoại)',
+      power: true,
+      temp: targetTemp,
+      mode: acMode,
+      fan: acFan,
+      icon: '❄️',
+      description: `Đặt điều hòa nhiệt độ ${targetTemp}°C, chế độ ${acMode}, quạt ${acFan}`
+    };
+  }
+
+  // 2. Bóc tách kênh hoặc nội dung YouTube cụ thể
   const ytKeywords = ['youtube', 'yt', 'du tup', 'du túp', 'vo tup', 'vô túp', 'u tup', 'u túp', 'mạng'];
   const hasYtMention = ytKeywords.some(k => lower.includes(k) || noTone.includes(k));
 
@@ -150,23 +251,34 @@ export function parseVoiceCommand(text) {
     extractedChannel = channelMatch[1].replace(/(?:trên|tren)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup|mạng)/gi, '').trim();
   }
 
+  // Mẫu: "tìm trên youtube [nội dung]", "xem trên mạng [nội dung]"
   if (!extractedChannel && hasYtMention) {
-    const onYtMatch = text.match(/(?:mở|bật|vào|xem|coi|nghe)\s+(.+?)\s+(?:trên|tren)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup|mạng)/i);
+    const findOnYtMatch = text.match(/(?:tìm|kiếm|tìm kiếm|search|mở|bật|xem|coi)\s+(?:trên|ở)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup|mạng)\s+(.+)/i);
+    if (findOnYtMatch && findOnYtMatch[1]) {
+      extractedChannel = findOnYtMatch[1].trim();
+    }
+  }
+
+  // Mẫu: "[nội dung] trên youtube"
+  if (!extractedChannel && hasYtMention) {
+    const onYtMatch = text.match(/(?:mở|bật|vào|xem|coi|nghe|tìm|kiếm|tìm kiếm)\s+(.+?)\s+(?:trên|tren|ở)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup|mạng)/i);
     if (onYtMatch && onYtMatch[1]) {
       extractedChannel = onYtMatch[1].replace(/^(?:kênh|kenh)\s+/i, '').trim();
     }
   }
 
+  // Mẫu: "(lên|vào|mở) youtube (tìm|kiếm|xem|coi|bật|mở|nghe) [nội dung]"
   if (!extractedChannel && hasYtMention) {
-    const enterYtMatch = text.match(/(?:vào|vao|mở|mo|bật|bat)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup)\s+(?:xem|coi|bật|mở|nghe)\s+(.+)/i);
+    const enterYtMatch = text.match(/(?:vào|vao|mở|mo|bật|bat|lên|len)\s+(?:youtube|yt|du\s*túp|du\s*tup|vô\s*túp|vo\s*tup|mạng)\s+(?:xem|coi|bật|mở|nghe|tìm|kiếm|tìm kiếm)\s+(.+)/i);
     if (enterYtMatch && enterYtMatch[1]) {
       extractedChannel = enterYtMatch[1].replace(/^(?:kênh|kenh)\s+/i, '').trim();
     }
   }
 
+  // Mẫu: Nhạc, karaoke, clip, phim, hài (kể cả không nói từ youtube)
   if (!extractedChannel) {
-    const musicMatch = text.match(/^(?:mở|bật|nghe|cho nghe|cho coi|cho xem)\s+(nhạc\s+[^,.]+|ca nhạc\s+[^,.]+|cải lương\s+[^,.]+|hài\s+[^,.]+|phim\s+[^,.]+)/i);
-    if (musicMatch && musicMatch[1] && !lower.includes('tivi') && !lower.includes('đài')) {
+    const musicMatch = text.match(/^(?:mở|bật|nghe|cho nghe|cho coi|cho xem|tìm|kiếm|hát)\s+(nhạc\s+[^,.]+|ca nhạc\s+[^,.]+|karaoke\s+[^,.]+|cải lương\s+[^,.]+|hài\s+[^,.]+|phim\s+[^,.]+|video\s+[^,.]+|clip\s+[^,.]+)/i);
+    if (musicMatch && musicMatch[1] && !lower.includes('tivi') && !lower.includes('đài') && !lower.includes('điều hòa')) {
       extractedChannel = musicMatch[1].trim();
     }
   }
@@ -191,7 +303,7 @@ export function parseVoiceCommand(text) {
     }
   }
 
-  // 1. So khớp với danh sách IR commands cơ bản
+  // 3. So khớp với danh sách IR commands cơ bản
   for (const cmd of IR_COMMANDS) {
     if (
       cmd.keywords.some((keyword) => {
@@ -204,7 +316,7 @@ export function parseVoiceCommand(text) {
     }
   }
 
-  // 2. Thuật toán phân tích ngữ nghĩa phương ngữ 3 miền (Dialect Semantic Intent Matching)
+  // 4. Thuật toán phân tích ngữ nghĩa phương ngữ 3 miền (Dialect Semantic Intent Matching)
   const hasYouTube = REGIONAL_VOCABULARY.YOUTUBE.some(w => lower.includes(w) || noTone.includes(removeVietnameseTones(w)));
   const hasTV = REGIONAL_VOCABULARY.TV.some(w => lower.includes(w) || noTone.includes(removeVietnameseTones(w)));
   const hasOn = REGIONAL_VOCABULARY.POWER_ON.some(w => lower.includes(w) || noTone.includes(removeVietnameseTones(w)));

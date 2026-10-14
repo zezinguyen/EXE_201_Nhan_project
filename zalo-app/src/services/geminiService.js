@@ -1,4 +1,5 @@
-import { convertBlobToWav } from './wavUtils';
+import { convertBlobToWav } from '../utils/wavUtils';
+
 
 export const GEMINI_MODELS = [
   'gemini-3.8-flash',

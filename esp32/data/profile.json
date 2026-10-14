@@ -1,0 +1,65 @@
+{
+  "profileVersion": 1,
+  "devices": {
+    "tv_living": {
+      "type": "tv",
+      "name": "Tivi phòng khách",
+      "commands": {
+        "POWER": {
+          "protocol": "NEC",
+          "code": "0x20DF10EF",
+          "bits": 32
+        },
+        "TV_POWER_ON": {
+          "protocol": "NEC",
+          "code": "0x20DF10EF",
+          "bits": 32
+        },
+        "TV_POWER_OFF": {
+          "protocol": "NEC",
+          "code": "0x20DF10EF",
+          "bits": 32
+        },
+        "VOL_UP": {
+          "protocol": "NEC",
+          "code": "0x20DF40BF",
+          "bits": 32
+        },
+        "VOL_DOWN": {
+          "protocol": "NEC",
+          "code": "0x20DFC03F",
+          "bits": 32
+        },
+        "MUTE": {
+          "protocol": "NEC",
+          "code": "0x20DF906F",
+          "bits": 32
+        },
+        "CH_VTV1": {
+          "protocol": "NEC",
+          "code": "0x20DF00FF",
+          "bits": 32
+        },
+        "CH_VTV3": {
+          "protocol": "NEC",
+          "code": "0x20DF08F7",
+          "bits": 32
+        },
+        "APP_YOUTUBE": {
+          "protocol": "NEC",
+          "code": "0x20DF58A7",
+          "bits": 32
+        }
+      }
+    },
+    "ac_living": {
+      "type": "ac",
+      "name": "Điều hòa phòng khách",
+      "irac_protocol": "PANASONIC_AC",
+      "limits": {
+        "temp_min": 16,
+        "temp_max": 30
+      }
+    }
+  }
+}

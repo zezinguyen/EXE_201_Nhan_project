@@ -11,6 +11,8 @@ target/
 */target/
 www/
 */www/
+.pio/
+*/.pio/
 
 # Environment files and secrets
 .env

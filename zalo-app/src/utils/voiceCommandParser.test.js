@@ -132,4 +132,97 @@ describe('voiceCommandParser - Seam: YouTube Dynamic Entity Extraction', () => {
       channelQuery: 'Cải lương hồ quảng'
     });
   });
+
+  it('extracts query when pattern is "tìm trên youtube [query]" or "lên youtube tìm [query]"', () => {
+    const res1 = parseVoiceCommand('tìm trên youtube bài hát cắt đôi nỗi sầu');
+    expect(res1).toMatchObject({
+      action: 'YOUTUBE_SEARCH',
+      channelQuery: 'Bài hát cắt đôi nỗi sầu'
+    });
+
+    const res2 = parseVoiceCommand('lên youtube tìm review xe điện vinfast');
+    expect(res2).toMatchObject({
+      action: 'YOUTUBE_SEARCH',
+      channelQuery: 'Review xe điện vinfast'
+    });
+  });
+
+  it('detects karaoke and search intent even without explicit mention of youtube', () => {
+    const res = parseVoiceCommand('bật karaoke duyên phận tone nam');
+    expect(res).toMatchObject({
+      action: 'YOUTUBE_SEARCH',
+      channelQuery: 'Karaoke duyên phận tone nam'
+    });
+  });
 });
+
+describe('voiceCommandParser - Seam: Air Conditioner (AC) Controls', () => {
+  it('extracts fan speed modes (low, med, high, auto) from voice command', () => {
+    const resLow = parseVoiceCommand('bật điều hòa 25 độ quạt gió nhẹ');
+    expect(resLow).toMatchObject({
+      action: 'SET',
+      temp: 25,
+      fan: 'low'
+    });
+
+    const resHigh = parseVoiceCommand('máy lạnh 22 độ quạt mạnh');
+    expect(resHigh).toMatchObject({
+      action: 'SET',
+      temp: 22,
+      fan: 'high'
+    });
+  });
+
+  it('clamps out-of-range temperatures between 16°C and 30°C per AC specs', () => {
+    const resTooLow = parseVoiceCommand('bật điều hòa 10 độ');
+    expect(resTooLow.temp).toBe(16);
+
+    const resTooHigh = parseVoiceCommand('máy lạnh 35 độ');
+    expect(resTooHigh.temp).toBe(30);
+  });
+});
+
+describe('voiceCommandParser - Seam: Custom Remotes & Voice Aliases', () => {
+  const mockCustomRemotes = [
+    {
+      id: 'rem_fan',
+      name: 'Quạt Senko',
+      deviceId: 'fan_living',
+      buttons: [
+        {
+          id: 'btn_swing',
+          label: 'Đảo gió',
+          action: 'SWING',
+          voiceAliases: ['quay quạt', 'đảo gió', 'xoay quạt'],
+          ir: { protocol: 'NEC', code: '0x00FF5AA5', bits: 32 }
+        },
+        {
+          id: 'btn_fan_off',
+          label: 'Tắt quạt',
+          action: 'POWER_OFF',
+          voiceAliases: ['tắt quạt senko', 'nghỉ quạt'],
+          ir: { protocol: 'NEC', code: '0x00FF1234', bits: 32 }
+        }
+      ]
+    }
+  ];
+
+  it('matches custom remote button by voice alias even with dialect/tone differences', () => {
+    const res = parseVoiceCommand('làm ơn quay quat cho mát', mockCustomRemotes);
+    expect(res).not.toBeNull();
+    expect(res.action).toBe('SWING');
+    expect(res.deviceId).toBe('fan_living');
+    expect(res.irCode).toBe('0x00FF5AA5');
+    expect(res.ir).toEqual({ protocol: 'NEC', code: '0x00FF5AA5', bits: 32 });
+  });
+
+  it('prioritizes custom remote voice alias over generic TV power off', () => {
+    const res = parseVoiceCommand('tắt quạt senko đi', mockCustomRemotes);
+    expect(res).not.toBeNull();
+    expect(res.action).toBe('POWER_OFF');
+    expect(res.deviceId).toBe('fan_living');
+    expect(res.device).toBe('Quạt Senko');
+  });
+});
+
+
