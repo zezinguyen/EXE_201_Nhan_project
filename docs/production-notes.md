@@ -54,7 +54,37 @@ Thay bằng IC/module "power bank" gộp sạc + boost 5V + bảo vệ pin (VD h
   - WS2812B cần nguồn ~5V, nhưng mức logic "1" của nó là 0.7 × VDD ≈ 3.5V, **cao hơn 3.3V** của MCU → cần IC chuyển mức (VD 74AHCT1G125) hoặc chọn loại chạy được ở 3.3V (SK6812, WS2812C-2020…).
   - Mỗi LED ăn **~0.5–1mA ngay cả khi tắt**. Với thiết bị chạy pin nên cấp nguồn LED qua một chân/transistor để ngắt hẳn khi không cần.
 
-## 5. Việc khác nên làm trước khi phát hành
+## 5. Sóng WiFi khi đặt mạch trong hộp
+
+Đo trên prototype (để trần, cách router một phòng): RSSI chỉ -67 đến -73 dBm, nhiều lần không vào được WiFi (`4WAY_HANDSHAKE_TIMEOUT`, `AUTH_EXPIRE`, `NO_AP_FOUND` trong log). Cho vào hộp sẽ còn yếu hơn. Anten PCB của module ESP32 rất nhạy với vật xung quanh:
+
+- **Vùng cấm quanh anten:** đặt module ở **mép PCB**, phần anten chìa ra ngoài hoặc nằm trên vùng **không có đồng** (cả mặt trên lẫn mặt dưới, không đi dây, không đổ GND). Theo hướng dẫn thiết kế phần cứng của Espressif, tốt nhất anten cách mọi kim loại ≥ 15mm.
+- **Giữ xa anten:** pin LiPo, nam châm loa, dây nguồn, mạch boost (cuộn cảm gây nhiễu), vỏ kim loại. Pin và loa nên đặt ở **đầu đối diện** với anten.
+- **Vỏ hộp:** nhựa thường (ABS/PC). Không dùng kim loại, sơn ánh kim, mạ crom, hay nhựa pha bột carbon/sợi carbon (chặn sóng).
+- Nếu vẫn yếu: dùng module có **cổng anten ngoài u.FL** (VD ESP32-WROOM-32U, ESP32-C3-MINI-1U) + anten dẻo dán vào thành hộp, phía hướng về router.
+- **Nghiệm thu:** so RSSI của cùng một mạch đặt trần và đặt trong hộp, cùng vị trí (web bản thử và Presence đều báo RSSI). Đặt mức tụt tối đa cho phép, VD ≤ 6 dB.
+- Hộp cần **cửa sổ trong suốt với hồng ngoại** (nhựa đen lọc IR hoặc nhựa trong) phía trước LED IR và mắt thu, nếu không thì phát và học lệnh đều yếu.
+- Mạch chỉ dùng **WiFi 2.4GHz**. Trang cài WiFi và hướng dẫn sử dụng phải nói rõ điều này (nhiều router đặt tên mạng 2.4 và 5GHz khác nhau, hoặc chỉ phát tên phụ ở 5GHz).
+
+## 6. Nhiệt khi không có tản nhiệt
+
+Trong hộp kín không có tản nhiệt, nhiệt dồn lại, làm ESP32 nóng và **pin LiPo nóng theo**. Pin LiPo chỉ nên sạc ở khoảng 0–45°C, nên phải xử lý cả nguồn sinh nhiệt chứ không chỉ riêng ESP32:
+
+| Nguồn nhiệt | Vì sao nóng | Cách xử lý |
+|---|---|---|
+| **AMS1117 trên DevKit** | Hạ 5V → 3.3V kiểu tuyến tính: ở 150–300mA (WiFi phát) đốt 0.25–0.5W thành nhiệt, thường **nóng hơn cả ESP32** | Bỏ DevKit; cấp 3V3 bằng LDO rớt áp thấp lấy thẳng từ pin (mục 3) hoặc buck: chênh áp nhỏ → gần như không sinh nhiệt |
+| **ESP32 khi WiFi chạy liên tục** | 240MHz + radio bật suốt | Hạ CPU (80MHz khi chạy pin đã có trong `PowerManager`), bật Modem-Sleep / Light Sleep (giai đoạn 2 trong spec 5.2), không để radio phát liên tục |
+| **TP4056 khi sạc** | Sạc tuyến tính: sạc 1A từ 5V vào pin 3.7V đốt ~1.3W, nóng nhất lúc đang sạc | Giảm dòng sạc (điện trở RPROG, VD ~500mA cho pin 1100mAh), hoặc IC sạc dạng xung (switching) như họ IP5306 ở mục 3 |
+| **Mạch boost 5V** | Hiệu suất ~85–90%, phần hao thành nhiệt | Chỉ bật 5V khi phát IR / phát tiếng nếu được |
+
+Thiết kế PCB và hộp:
+- **Đổ đồng GND diện rộng + via nhiệt** dưới pad tản nhiệt của module ESP32 và dưới IC nguồn: tán nhiệt ra cả tấm PCB.
+- Tách IC nguồn / sạc **xa pin**. Không dán pin sát lên ESP32 hay IC sạc.
+- Khe thông gió trên và dưới hộp (khí nóng đi lên). Nếu cần kín, dùng **miếng dẫn nhiệt (thermal pad)** từ IC nguồn ra thành hộp.
+- **Nghiệm thu:** chạy liên tục 24h trong hộp, có cả lúc đang sạc. Đo nhiệt độ bề mặt pin và ESP32 (nhiệt kế hồng ngoại hoặc cảm biến nội của chip). Đặt ngưỡng, VD pin < 45°C khi sạc.
+- Firmware có thể đọc nhiệt độ: thêm cảm biến NTC sát pin; quá ngưỡng thì **ngừng sạc** (nếu IC sạc cho phép) và báo lỗi về server.
+
+## 7. Việc khác nên làm trước khi phát hành
 
 - Tắt nhận lệnh qua Serial: `SERIAL_BRIDGE_ENABLED = false` trong `config.h`.
 - Dùng module MCU trần trên PCB riêng, bỏ chip USB-UART và đèn nguồn của DevKit (ăn điện thường trực).

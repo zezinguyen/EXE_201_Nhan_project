@@ -57,7 +57,7 @@ constexpr bool IR_RX_POWER_ACTIVE_HIGH = true;
 // -----------------------------------------------------------------------------
 // Pin / nguồn
 // -----------------------------------------------------------------------------
-constexpr float BATTERY_DIVIDER_RATIO = 2.0f;  // Cầu chia 2 x 100k
+constexpr float BATTERY_DIVIDER_RATIO = 2.010f;  // Cầu chia đo thực tế: (100.8k + 99.8k) / 99.8k
 constexpr uint16_t USB_SENSE_MIN_MV = 1500;     // Đo ở chân VN: >= ngưỡng = đang cắm USB (5V/2 = 2.5V)
 // Module TP4056 không đưa chân CHRG ra: cắm USB mà pin dưới ngưỡng này thì coi là đang sạc.
 // Khi đang sạc, điện áp đo được cao hơn điện áp nghỉ của pin -> % hiển thị lúc sạc chỉ tương đối.
