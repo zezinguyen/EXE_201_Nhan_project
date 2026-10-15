@@ -177,7 +177,7 @@ async function refresh(force){
   let s;try{s=await (await fetch('/api/state')).json()}catch(e){$('bar').textContent='Mất kết nối tới mạch';return}
   $('bar').innerHTML='';
   $('bar').append(el('span',{textContent:'http://'+s.host+' · '+s.ip}),el('span',{textContent:'WiFi '+s.rssi+' dBm'}),
-    el('span',{textContent:(s.usb?'🔌 ':'🔋 ')+s.battery+'%'+(s.charging?' (đang sạc)':'')}),el('span',{textContent:'v'+s.firmware}));
+    el('span',{textContent:(s.usb?'🔌 ':'🔋 ')+s.battery+'% · '+(s.batteryMv/1000).toFixed(2)+'V'+(s.charging?' (đang sạc)':''),title:'Lần đo gần nhất (chưa lọc): '+s.batteryRawMv+' mV'}),el('span',{textContent:'v'+s.firmware}));
   renderLearn(s.learn);
   if(force||s.profileVersion!==version){version=s.profileVersion;profile=await api('/api/profile');if(!profile.devices)profile.devices={};renderAc();renderKeys()}
 }

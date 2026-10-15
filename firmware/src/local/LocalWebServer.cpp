@@ -130,6 +130,8 @@ void LocalWebServer::handleState() {
     doc["host"] = String(LOCAL_MDNS_HOSTNAME) + ".local";
     doc["rssi"] = wifi_.rssi();
     doc["battery"] = power_.batteryPercent();
+    doc["batteryMv"] = power_.batteryMillivolts();
+    doc["batteryRawMv"] = power_.batteryRawMillivolts();
     doc["charging"] = power_.isCharging();
     doc["usb"] = power_.source() == PowerSource::Usb;
     doc["profileVersion"] = store_.profileVersion();

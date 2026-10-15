@@ -62,8 +62,9 @@ constexpr uint16_t USB_SENSE_MIN_MV = 1500;     // Đo ở chân VN: >= ngưỡn
 // Module TP4056 không đưa chân CHRG ra: cắm USB mà pin dưới ngưỡng này thì coi là đang sạc.
 // Khi đang sạc, điện áp đo được cao hơn điện áp nghỉ của pin -> % hiển thị lúc sạc chỉ tương đối.
 constexpr uint16_t BATTERY_FULL_MV = 4150;
-constexpr uint8_t BATTERY_SAMPLES = 8;          // Số mẫu ADC lấy trung bình
-constexpr uint32_t BATTERY_SAMPLE_INTERVAL_MS = 30UL * 1000;
+constexpr uint8_t BATTERY_SAMPLES = 16;         // Số mẫu ADC mỗi lần đo, lấy trung vị (bỏ mẫu lệch khi WiFi phát)
+constexpr uint32_t BATTERY_SAMPLE_INTERVAL_MS = 5UL * 1000;
+constexpr uint8_t BATTERY_FILTER_SHIFT = 4;      // Làm mượt 1/16 mỗi lần đo (~80s): pin sụt ~90mV mỗi lần WiFi phát
 constexpr uint8_t BATTERY_LOW_PERCENT = 20;      // Báo chủ nhà
 constexpr uint8_t BATTERY_CRITICAL_PERCENT = 10; // Tắt OLED/loa
 constexpr uint8_t BATTERY_EMPTY_PERCENT = 5;     // Báo "sắp hết pin", chỉ giữ chức năng cơ bản

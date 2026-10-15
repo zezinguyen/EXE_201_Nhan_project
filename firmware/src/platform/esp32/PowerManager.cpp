@@ -1,13 +1,15 @@
 #include "modules/PowerManager.h"
 
 #include <Arduino.h>
+#include <Elapsed.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 
 #include "config.h"
 
 PowerManager::PowerManager()
-    : gauge_({BATTERY_LOW_PERCENT, BATTERY_CRITICAL_PERCENT, BATTERY_EMPTY_PERCENT}, BATTERY_HYSTERESIS_PERCENT) {}
+    : gauge_({BATTERY_LOW_PERCENT, BATTERY_CRITICAL_PERCENT, BATTERY_EMPTY_PERCENT}, BATTERY_HYSTERESIS_PERCENT),
+      filter_(BATTERY_FILTER_SHIFT) {}
 
 void PowerManager::begin() {
     readBattery();  // Trước readCharger(): suy ra "đang sạc" cần điện áp pin
@@ -22,14 +24,15 @@ void PowerManager::update(uint32_t nowMs) {
     const BatteryLevel oldLevel = gauge_.level();
 
     readCharger();
-    if (nowMs - lastSampleMs_ >= BATTERY_SAMPLE_INTERVAL_MS) {
+    if (source_ != oldSource) {
+        filter_.reset();  // Cắm/rút sạc: điện áp đổi bậc, đo lại từ đầu
+        applyPowerProfile();
+    }
+    if (source_ != oldSource || elapsedMs(nowMs, lastSampleMs_) >= BATTERY_SAMPLE_INTERVAL_MS) {
         lastSampleMs_ = nowMs;
         readBattery();
     }
 
-    if (source_ != oldSource) {
-        applyPowerProfile();
-    }
     changed_ = source_ != oldSource || gauge_.level() != oldLevel;
 }
 
@@ -56,11 +59,12 @@ void PowerManager::readCharger() {
 }
 
 void PowerManager::readBattery() {
-    uint32_t sum = 0;
+    uint16_t samples[BATTERY_SAMPLES];
     for (uint8_t i = 0; i < BATTERY_SAMPLES; i++) {
-        sum += analogReadMilliVolts(PIN_BATTERY_ADC);
+        samples[i] = analogReadMilliVolts(PIN_BATTERY_ADC);
     }
-    millivolts_ = static_cast<uint16_t>(sum / BATTERY_SAMPLES * BATTERY_DIVIDER_RATIO);
+    rawMillivolts_ = static_cast<uint16_t>(medianMillivolts(samples, BATTERY_SAMPLES) * BATTERY_DIVIDER_RATIO);
+    millivolts_ = filter_.add(rawMillivolts_);
     percent_ = BatteryGauge::percentFromMillivolts(millivolts_);
     gauge_.update(percent_);
 }
