@@ -12,13 +12,13 @@ export function getActiveApiKey(providedKey) {
   if (providedKey && typeof providedKey === 'string' && providedKey.trim()) {
     return providedKey.trim();
   }
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (envKey && envKey.trim()) return envKey.trim();
-  }
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem('gemini_api_key');
     if (stored && stored.trim()) return stored.trim();
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && envKey.trim()) return envKey.trim();
   }
   return '';
 }
@@ -32,18 +32,20 @@ function cleanJsonOutput(text) {
   return cleaned;
 }
 
-export async function postVilaoChatCompletion(payload, apiKey) {
-  const endpoints = [];
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    endpoints.push('/api-ai/v1/chat/completions');
-  }
-  const configuredBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_AI_BASE_URL) || 'https://api.vilao.ai/v1';
-  const directEndpoint = `${configuredBase.replace(/\/+$/, '')}/chat/completions`;
-  if (!endpoints.includes(directEndpoint)) {
-    endpoints.push(directEndpoint);
-  }
-  if (!endpoints.includes('https://api.vilao.ai/v1/chat/completions')) {
-    endpoints.push('https://api.vilao.ai/v1/chat/completions');
+export async function postVilaoChatCompletion(payload, apiKey, customEndpoints = null) {
+  const endpoints = Array.isArray(customEndpoints) && customEndpoints.length > 0 ? [...customEndpoints] : [];
+  if (endpoints.length === 0) {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      endpoints.push('/api-ai/v1/chat/completions');
+    }
+    const configuredBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_AI_BASE_URL) || 'https://api.vilao.ai/v1';
+    const directEndpoint = `${configuredBase.replace(/\/+$/, '')}/chat/completions`;
+    if (!endpoints.includes(directEndpoint)) {
+      endpoints.push(directEndpoint);
+    }
+    if (!endpoints.includes('https://api.vilao.ai/v1/chat/completions')) {
+      endpoints.push('https://api.vilao.ai/v1/chat/completions');
+    }
   }
 
   let lastErr = null;

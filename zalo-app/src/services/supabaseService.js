@@ -243,15 +243,24 @@ export async function recordVoiceCommandLog({ transcript, action, title, device,
 
 /**
  * Đăng ký Realtime theo dõi thay đổi mạch, điều hòa, mã học mới và thành viên gia đình
+ * Đồng thời lắng nghe Presence & Broadcast trực tiếp từ mạch ESP32 trên kênh home:<homeId>
  */
-export function subscribeHomeRealtime({ onDeviceStateUpdated, onBoardUpdated, onLearnedCodeAdded, onMembersUpdated }) {
+export function subscribeHomeRealtime({ 
+  onDeviceStateUpdated, 
+  onBoardUpdated, 
+  onLearnedCodeAdded, 
+  onMembersUpdated,
+  onLearnEvent,
+  homeId = '00000000-0000-0000-0000-000000000001'
+}) {
   if (!isSupabaseConfigured()) return () => {};
   const supabase = getSupabase();
   if (!supabase) return () => {};
 
   try {
-    const channel = supabase
-      .channel('home_realtime_changes')
+    // 1. Kênh theo dõi Postgres Database Changes
+    const dbChannel = supabase
+      .channel('home_db_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'device_state' },
@@ -299,12 +308,104 @@ export function subscribeHomeRealtime({ onDeviceStateUpdated, onBoardUpdated, on
       )
       .subscribe();
 
+    // 2. Kênh Realtime trực tiếp với ESP32: home:<homeId>
+    // Nhận Presence (Pin, Sạc, RSSI, Online/Offline) & Broadcast (Learn Events, ACK)
+    const esp32Channel = supabase.channel(`home:${homeId}`, {
+      config: { broadcast: { self: false } }
+    });
+
+    esp32Channel
+      .on('presence', { event: 'sync' }, () => {
+        const presenceState = esp32Channel.presenceState();
+        Object.keys(presenceState).forEach((boardId) => {
+          const list = presenceState[boardId];
+          if (list && list.length > 0) {
+            const st = list[0];
+            const updatedBoard = {
+              id: boardId,
+              isOnline: true,
+              battery: st.battery !== undefined ? st.battery : 100,
+              charging: Boolean(st.charging),
+              usb: Boolean(st.usb),
+              rssi: st.rssi || -60,
+              firmware: st.firmware || '0.1.0',
+              profileVersion: st.profileVersion || 1,
+              last_seen_at: new Date().toISOString()
+            };
+            if (onBoardUpdated) {
+              onBoardUpdated(updatedBoard);
+            }
+            // Tự động giữ bảng boards tươi mới trên DB
+            supabase.from('boards').update({
+              last_seen_at: new Date().toISOString(),
+              battery: updatedBoard.battery,
+              charging: updatedBoard.charging,
+              usb: updatedBoard.usb,
+              rssi: updatedBoard.rssi
+            }).eq('id', boardId).then();
+          }
+        });
+      })
+      .on('broadcast', { event: 'learn_progress' }, ({ payload }) => {
+        if (onLearnEvent) onLearnEvent({ event: 'learn_progress', ...payload });
+      })
+      .on('broadcast', { event: 'learn_result' }, ({ payload }) => {
+        if (onLearnEvent) onLearnEvent({ event: 'learn_result', ...payload });
+      })
+      .on('broadcast', { event: 'learn_timeout' }, ({ payload }) => {
+        if (onLearnEvent) onLearnEvent({ event: 'learn_timeout', ...payload });
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(dbChannel);
+      supabase.removeChannel(esp32Channel);
     };
   } catch (err) {
     console.warn('Lỗi subscribeHomeRealtime:', err);
     return () => {};
+  }
+}
+
+/**
+ * Gửi lệnh yêu cầu ESP32 bật mắt thu học lệnh IR (Specs 7.1, Contracts 3.5)
+ */
+export async function sendLearnStart(requestId, homeId = '00000000-0000-0000-0000-000000000001') {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  try {
+    const channel = supabase.channel(`home:${homeId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'learn_start',
+      payload: { requestId }
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Gửi lệnh huỷ học lệnh IR trên ESP32
+ */
+export async function sendLearnCancel(homeId = '00000000-0000-0000-0000-000000000001') {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
+
+  try {
+    const channel = supabase.channel(`home:${homeId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'learn_cancel',
+      payload: {}
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -303,6 +303,27 @@ void setup() {
     wifi.begin(secureStore);
     timeSync.begin();
 
+#if defined(DEFAULT_WIFI_SSID) && defined(DEFAULT_WIFI_PASS)
+    if (secureStore.wifiCount() == 0 && strlen(DEFAULT_WIFI_SSID) > 0) {
+        WifiCredential cred = {};
+        strncpy(cred.ssid, DEFAULT_WIFI_SSID, sizeof(cred.ssid) - 1);
+        strncpy(cred.password, DEFAULT_WIFI_PASS, sizeof(cred.password) - 1);
+        secureStore.addWifi(cred);
+        log_i("Da nap WiFi mac dinh tu secrets.h: %s", cred.ssid);
+    }
+#endif
+#if defined(DEFAULT_BOARD_ID) && defined(DEFAULT_HOME_ID)
+    if (!provisioning.isPaired() && strlen(DEFAULT_BOARD_ID) > 0) {
+#if defined(DEFAULT_BOARD_TOKEN)
+        const char* token = DEFAULT_BOARD_TOKEN;
+#else
+        const char* token = SUPABASE_ANON_KEY;
+#endif
+        provisioning.completePairing(token, DEFAULT_BOARD_ID, DEFAULT_HOME_ID);
+        log_i("Da nap Board mac dinh: %s (Home: %s)", DEFAULT_BOARD_ID, DEFAULT_HOME_ID);
+    }
+#endif
+
     // Mạch mới / đã reset: tự vào chế độ cài đặt, không cần giữ nút
     if (!provisioning.isPaired() || secureStore.wifiCount() == 0) {
         enterSetupMode(millis());

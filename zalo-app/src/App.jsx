@@ -219,13 +219,30 @@ function App() {
         }
       },
       onBoardUpdated: (board) => {
-        setBoards(prev => prev.map(b => {
-          if (b.id === board.id) {
-            const isOnline = (Date.now() - new Date(board.last_seen_at).getTime()) <= (6 * 60 * 1000);
-            return { ...b, ...board, isOnline };
+        setBoards(prev => {
+          const exists = prev.some(b => b.id === board.id);
+          if (exists) {
+            return prev.map(b => {
+              if (b.id === board.id) {
+                const isOnline = board.isOnline !== undefined
+                  ? board.isOnline
+                  : (board.last_seen_at ? (Date.now() - new Date(board.last_seen_at).getTime()) <= (6 * 60 * 1000) : false);
+                return { ...b, ...board, isOnline };
+              }
+              return b;
+            });
           }
-          return b;
-        }));
+          return [...prev, { name: 'Mạch IR ESP32', room: 'Phòng khách', ...board, isOnline: true }];
+        });
+      },
+      onLearnEvent: (evt) => {
+        if (evt.event === 'learn_progress') {
+          showNotification(evt.status === 'first_captured' ? '📡 Đã nhận lần 1! Bấm lại lần 2 để xác nhận.' : '⚠️ Mã không khớp, vui lòng bấm lại.');
+        } else if (evt.event === 'learn_result') {
+          showNotification(evt.status === 'ok' ? '✅ Đã học mã thành công!' : '❌ Học lệnh thất bại.');
+        } else if (evt.event === 'learn_timeout') {
+          showNotification('⏳ Hết thời gian chờ học lệnh (15 giây).');
+        }
       },
       onLearnedCodeAdded: (code) => {
         setPendingCodes(prev => [code, ...prev]);
