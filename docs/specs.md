@@ -50,16 +50,16 @@
 | Tụ hoá 1000µF | Chống sụt áp khi WiFi phát / LED IR nháy | Đặt sát đầu ra boost |
 | LED IR 940nm + trở 22Ω | **Mắt phát** | ~150mA mỗi xung từ 5V |
 | **S8050** (NPN) + trở 330Ω (B) + 10k (B–E) | Khoá đóng/ngắt LED IR | 1 LED IR: S8050 đủ. Muốn phát xa hơn (2 LED nối tiếp hoặc giảm trở → dòng > 300mA) thì dùng **SS8050** |
-| VS1838B / TSOP38238 | **Mắt thu** | VCC lấy thẳng từ GPIO, chỉ bật khi học lệnh |
+| VS1838B / TSOP38238 | **Mắt thu** | Prototype: VCC nối 3V3 (ăn ~1mA thường trực). Muốn tiết kiệm: cấp VCC từ GPIO, chỉ bật khi học lệnh (`PIN_IR_RX_POWER`) |
 | OLED 0.96" SSD1306 (I2C) | Hiện trạng thái, pin, mật khẩu WiFi cài đặt, mã ghép đôi | Tự tắt khi không dùng |
 | **DFPlayer Mini + thẻ microSD** | Phát file âm thanh xác nhận | Nguồn 3V3 **thường trực** (bật lại mất ~1.5s đọc thẻ). Lấy tín hiệu ở DAC_L/DAC_R, không dùng SPK1/SPK2 |
 | **PAM8403** (module khuếch đại) | Khuếch đại DAC → loa | Nguồn 5V từ boost. Dùng 1 kênh, đầu ra cầu (BTL) |
 | Loa 3W 4Ω | Phát tiếng | |
-| **LED RGB anode chung** + 3 trở | LED trạng thái nhiều màu (mục 9.3) | Anode nối 3V3, GPIO kéo xuống thì sáng |
+| **LED RGB cathode chung** + 3 trở | LED trạng thái nhiều màu (mục 9.3) | Chân chung nối GND, GPIO kéo lên thì sáng |
 | Nút nhấn × 1 | Học lệnh / cài đặt / reset | Xem bảng dưới |
 | Trở 100k × 4 | Cầu chia đo pin, đo USB | |
 
-**Thẻ nhớ DFPlayer**: file phải nằm trong thư mục `mp3` và đặt tên 4 chữ số (`/mp3/0001.mp3`). Nếu đặt tên kiểu `1.mp3` ở thư mục gốc, DFPlayer phát theo thứ tự chép file chứ không theo số. Danh sách (khớp `AudioTrack` trong `lib/core/src/AudioTracks.h`):
+**Thẻ nhớ DFPlayer**: file phải nằm trong thư mục `mp3` và đặt tên 4 chữ số (`/mp3/0001.mp3`). Nếu đặt tên kiểu `1.mp3` ở thư mục gốc, DFPlayer phát theo thứ tự chép file chứ không theo số. Danh sách (khớp `AudioTrack` trong `firmware/lib/core/src/AudioTracks.h`):
 
 | File | Nội dung | Khi nào phát |
 |---|---|---|
@@ -85,14 +85,14 @@
 | WiFi phát / LED IR gây sụt áp (dòng đỉnh vài trăm mA) | Tụ 1000µF sát đầu ra boost |
 | DFPlayer (~20mA) + PAM8403 (~10mA ở 5V) ăn điện thường trực | Chấp nhận để phát tiếng ngay, không chờ DFPlayer khởi động. Đổi lại pin giảm đáng kể (mục 5.4). Nếu cần tiết kiệm: nối chân **SHDN** của chip PAM8403 vào một GPIO (mức thấp = tắt ampli, bật lại gần như tức thì) |
 | DFPlayer cấp 3V3 mà đẩy loa trực tiếp: tối đa ~0.9W vào 4Ω và dòng đỉnh ~0.7A kéo trên đường 3V3 chung với ESP32 → dễ sụt áp, reset | Loa đi qua **PAM8403 cấp 5V** |
-| Mắt thu ăn điện liên tục | Cấp nguồn qua GPIO, chỉ bật khi học lệnh |
+| Mắt thu ăn điện liên tục (~0.5–1.5mA) | Nhỏ so với tổng ~75mA hiện tại nên prototype nối thẳng 3V3. Khi tối ưu pin (giai đoạn 2): cấp nguồn qua GPIO (đặt `PIN_IR_RX_POWER`), thêm tụ 100nF sát chân VCC |
 | TP4056 vừa sạc vừa chạy tải có thể không ngắt sạc đúng | Dùng mạch ưu tiên nguồn (PMOS + diode) hoặc module có load sharing |
 | ADC2 không dùng được khi bật WiFi | Đo pin, đo USB bằng chân ADC1 (GPIO32–39) |
 | Chân strapping (0, 2, 5, 12, 15) ảnh hưởng lúc khởi động | Không dùng cho ngoại vi |
 
 ### 3.3 Sơ đồ nối chân (ESP32 DevKit 30 chân)
 
-Chia theo **cạnh board** để dây không bắt chéo: module đặt bên phải nối chân cạnh phải, phần nguồn và LED/nút bên trái nối chân cạnh trái. Giá trị chân nằm trong `include/config.h`.
+Chia theo **cạnh board** để dây không bắt chéo: module đặt bên phải nối chân cạnh phải, phần nguồn và LED/nút bên trái nối chân cạnh trái. Giá trị chân nằm trong `firmware/include/config.h`.
 
 ```
                      ┌──────────────┐
@@ -101,16 +101,16 @@ Chia theo **cạnh board** để dây không bắt chéo: module đặt bên ph�
    Đo USB (IN+) ── VN│●            ●│ TX0    (USB nạp code)
                   D34│●            ●│ RX0    (USB nạp code)
                   D35│●            ●│ D21 ── OLED SDA
-                  D32│●   ESP32    ●│ D19 ── Mắt thu VCC
-                  D33│●  DevKit    ●│ D18 ── Mắt thu OUT
+                  D32│●   ESP32    ●│ D19 ── Mắt thu OUT
+                  D33│●  DevKit    ●│ D18
      RGB  R  ──── D25│●            ●│ D5
      RGB  G  ──── D26│●            ●│ TX2 ── DFPlayer RX
      RGB  B  ──── D27│●            ●│ RX2 ── DFPlayer TX
-                  D14│●            ●│ D4  ── 330Ω ── B S8050 (LED IR)
+S8050 B ← 330Ω ── D14│●            ●│ D4
                   D12│●            ●│ D2
      Nút ──────── D13│●            ●│ D15
-     Nút ──────── GND│●            ●│ GND ── GND chung
-   Boost 5V ───── VIN│●            ●│ 3V3 ── OLED, DFPlayer, anode RGB
+Nút, chung RGB ── GND│●            ●│ GND ── GND chung
+   Boost 5V ───── VIN│●            ●│ 3V3 ── OLED, DFPlayer, VCC mắt thu
                      └──────────────┘
 ```
 
@@ -132,11 +132,11 @@ Chia theo **cạnh board** để dây không bắt chéo: module đặt bên ph�
 
 Module TP4056 không đưa chân CHRG ra nên firmware suy ra trạng thái: có USB + pin < 4.15V = đang sạc; có USB + pin ≥ 4.15V = đầy. Lúc đang sạc, % pin hiển thị cao hơn thực tế (điện áp sạc cao hơn điện áp nghỉ).
 
-**LED RGB anode chung + nút** (cạnh trái, dưới)
+**LED RGB cathode chung + nút** (cạnh trái, dưới)
 
 | Tín hiệu | Nối |
 |---|---|
-| Chân chung (anode, chân dài nhất) | 3V3 |
+| Chân chung (cathode, chân dài nhất) | GND |
 | D25 / D26 / D27 | Trở → chân R / G / B. Đỏ 220Ω; xanh lá và xanh dương dùng ~47Ω vì sáng ở ~3V, gần sát 3.3V (330Ω sẽ gần như không thấy sáng) |
 | D13 | Một chân nút; chân còn lại vào **GND ngay cạnh** (dùng pull-up trong) |
 
@@ -151,8 +151,8 @@ Module TP4056 không đưa chân CHRG ra nên firmware suy ra trạng thái: có
 
 | Mắt thu | ESP32 |
 |---|---|
-| VCC | D19 |
-| OUT | D18 |
+| VCC | 3V3 |
+| OUT | D19 |
 | GND | GND |
 
 **DFPlayer Mini** (cạnh phải, giữa)
@@ -173,16 +173,16 @@ Module TP4056 không đưa chân CHRG ra nên firmware suy ra trạng thái: có
 | Đầu vào R (hoặc L), GND đầu vào | DAC của DFPlayer, GND của DFPlayer (dây GND đi sát dây tín hiệu để bớt ù) |
 | R+ / R− (hoặc L+ / L−) | Hai dây loa. **Không** nối R− xuống GND: đầu ra dạng cầu, nối là chập mạch |
 
-**LED IR** (cạnh phải, dưới)
+**LED IR** (cạnh trái, dưới)
 
 | Linh kiện | Nối |
 |---|---|
 | Boost 5V → 22Ω → anode LED IR | |
 | Cathode LED IR → C của S8050 | |
 | E của S8050 → GND | |
-| B của S8050 ← 330Ω ← **D4**; 10k từ B xuống GND | Giữ LED tắt lúc khởi động |
+| B của S8050 ← 330Ω ← **D14**; 10k từ B xuống GND | Giữ LED tắt lúc khởi động |
 
-Chân trống còn lại (D23, D34, D32, D33, D35, D14) để dự phòng; D23 có thể dùng cho chân SHDN của PAM8403 nếu muốn tắt ampli khi im lặng. Không dùng D2, D5, D12, D15 (chân strapping).
+Chân trống còn lại (D23, D34, D32, D33, D35, D18, D4) để dự phòng; D23 có thể dùng cho chân SHDN của PAM8403 nếu muốn tắt ampli khi im lặng. Không dùng D2, D5, D12, D15 (chân strapping).
 
 Nút duy nhất: giữ rồi **thả tay** ở mốc nào thì chạy chức năng của mốc đó. Trong lúc giữ, OLED hiện "Tha: <chức năng>" để biết lúc nào thả.
 
@@ -390,7 +390,7 @@ Kỳ vọng: dòng trung bình **vài mA** (cần đo), pin có thể dùng **v�
 |---|---|
 | OLED | Tắt sau 10 giây, bấm nút để sáng. Luôn sáng khi đang cài đặt / học lệnh |
 | DFPlayer + PAM8403 | Cấp điện thường trực để phát ngay (đánh đổi ~30mA, xem 3.2) |
-| Mắt thu IR | Chỉ cấp điện khi gán phím |
+| Mắt thu IR | Chỉ bật bộ thu (ngắt) khi gán phím; cấp điện qua GPIO nếu đặt `PIN_IR_RX_POWER` |
 | LED trạng thái | Chỉ nháy ngắn |
 | Gửi trạng thái (pin, RSSI) | Gom lại, mỗi 5–10 phút hoặc khi đổi đáng kể |
 
@@ -494,7 +494,7 @@ Muốn học nhiều phím thì lặp lại bước 1. Cách 1 (bắt đầu t�
 
 ### 7.2 Quy tắc gán phím
 
-- Chờ tối đa **15 giây**, quá hạn tự thoát và tắt nguồn mắt thu.
+- Chờ tối đa **15 giây**, quá hạn tự thoát và tắt mắt thu.
 - Mỗi phím thu **2 lần** và so sánh; khác nhau nhiều thì yêu cầu bấm lại (chống nhiễu).
 - Giải mã được protocol → lưu `protocol + code`; không giải mã được → lưu **raw**.
 - Đang gán phím thì không phát IR, và ngược lại.

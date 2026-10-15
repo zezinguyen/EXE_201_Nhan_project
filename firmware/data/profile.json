@@ -1,0 +1,20 @@
+{
+  "profileVersion": 1,
+  "devices": {
+    "tv_living": {
+      "type": "tv",
+      "name": "Tivi phòng khách",
+      "commands": {
+        "POWER": { "protocol": "SAMSUNG", "code": "0xE0E040BF", "bits": 32 },
+        "VOL_UP": { "protocol": "SAMSUNG", "code": "0xE0E0E01F", "bits": 32 },
+        "MOVIE_MODE": { "raw": [9000, 4500, 560, 560, 560, 1690], "freq": 38 }
+      }
+    },
+    "ac_living": {
+      "type": "ac",
+      "name": "Điều hòa phòng khách",
+      "irac_protocol": "PANASONIC_AC",
+      "limits": { "temp_min": 16, "temp_max": 30 }
+    }
+  }
+}

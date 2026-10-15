@@ -16,46 +16,18 @@ DoAn_SmartHome/
 │   ├── contracts.md                 # Hợp đồng giao thức kết nối WSS Phoenix, RPC, mã lỗi
 │   └── production-notes.md          # Hướng dẫn sản xuất hàng loạt, tiết kiệm năng lượng, OTA
 │
-├── esp32/                           # Firmware C++ cho vi điều khiển ESP32 (PlatformIO)
-│   ├── arduino/                     # Bản sketch Arduino IDE độc lập
-│   │   └── SmartHome_ESP32_TV.ino
-│   ├── data/                        # Dữ liệu LittleFS nạp vào Flash ESP32
-│   │   └── profile.json             # Bộ đệm profile thiết bị cục bộ (Contract mục 5)
-│   ├── include/                     # Toàn bộ file Header C++ (.h)
-│   │   ├── config.h                 # Cấu hình chân GPIO, ngưỡng PIN, WiFi NVS
-│   │   ├── AudioTracks.h            # Định nghĩa 9 track âm thanh MP3
-│   │   ├── IrCode.h                 # Định dạng mã IR & hàm serialize/deserialize JSON
-│   │   ├── AudioPlayer.h            # Điều khiển module DFPlayer Mini qua UART2
-│   │   ├── ButtonHandler.h          # Xử lý nút bấm đa chức năng (Học lệnh, SoftAP, Reset)
-│   │   ├── DeviceStore.h            # Quản lý LittleFS lưu profile và danh mục lệnh
-│   │   ├── DisplayOled.h            # Màn hình OLED SSD1306 0.96 inch I2C
-│   │   ├── IrLearner.h              # Mạch thu hồng ngoại VS1838B (Power-gated GPIO19)
-│   │   ├── IrSender.h               # Phát xung IR (IRsend + IRac Panasonic)
-│   │   ├── PowerManager.h           # Quản lý năng lượng, Modem-Sleep, đo ADC Pin/USB
-│   │   ├── Provisioning.h           # SoftAP Captive Portal & mã PIN ghép đôi 6 số
-│   │   ├── RealtimeClient.h         # Kết nối Supabase Realtime WSS (Phoenix Channels)
-│   │   ├── StatusLed.h              # Đèn LED trạng thái RGB (Anode chung)
-│   │   └── SupabaseRestClient.h     # Gửi HTTPS RPC (board_ack, board_status, offline queue)
-│   ├── mp3/                         # 9 file âm thanh giọng nói tiếng Việt chuẩn cho DFPlayer
-│   │   ├── 0001.mp3 ... 0009.mp3
-│   │   └── README.md
-│   ├── src/                         # Toàn bộ mã nguồn thực thi C++ (.cpp)
-│   │   ├── main.cpp                 # Điểm khởi chạy chính & vòng lặp sự kiện ESP32
-│   │   ├── AudioPlayer.cpp
-│   │   ├── ButtonHandler.cpp
-│   │   ├── DeviceStore.cpp
-│   │   ├── DisplayOled.cpp
-│   │   ├── IrLearner.cpp
-│   │   ├── IrSender.cpp
-│   │   ├── PowerManager.cpp
-│   │   ├── Provisioning.cpp
-│   │   ├── RealtimeClient.cpp
-│   │   ├── StatusLed.cpp
-│   │   └── SupabaseRestClient.cpp
-│   ├── tools/                       # Công cụ hỗ trợ firmware
-│   │   └── generate_mp3_tracks.js   # Script tải và sinh 9 file MP3 giọng đọc chuẩn
-│   ├── min_spiffs.csv               # Bảng phân vùng Dual OTA (2 x 1.88MB App + LittleFS)
-│   └── platformio.ini               # Cấu hình build PlatformIO, thư viện IRremoteESP8266...
+├── firmware/                        # Firmware mạch ESP32 (PlatformIO) – quy tắc ở firmware/CLAUDE.md
+│   ├── include/                     # config.h (chân GPIO, thông số theo board), secrets.example.h
+│   ├── lib/core/                    # Logic C++ thuần, có unit test (Backoff, CommandGuard, BatteryGauge...)
+│   ├── src/
+│   │   ├── main.cpp                 # Chỉ khởi tạo + nối module
+│   │   ├── app/                     # CommandHandler, Feedback, Outbox, SerialBridge
+│   │   ├── modules/                 # Header mọi module + phần dùng chung (IrSender, RealtimeClient...)
+│   │   └── platform/esp32/          # Phần riêng ESP32 (WiFi, NVS, LittleFS, HTTPS, DFPlayer...)
+│   ├── test/                        # Unit test Unity (native) + test_device_* chạy trên mạch thật
+│   ├── data/profile.json            # Profile mẫu nạp vào LittleFS
+│   ├── sounds/                      # 9 file 0001–0009.mp3 cho thẻ nhớ DFPlayer
+│   └── platformio.ini
 │
 ├── zalo-app/                        # Ứng dụng điều khiển Zalo Mini App (React + Vite)
 │   ├── src/
@@ -108,11 +80,19 @@ npm run dev
 npm run build
 ```
 
-### 2. Firmware ESP32 (`esp32`)
-- Mở thư mục `esp32` bằng **VSCode** có cài extension **PlatformIO IDE**.
-- Nạp firmware: Bấm **PlatformIO: Upload**.
-- Nạp hệ thống tệp LittleFS (`profile.json`): Bấm **PlatformIO: Upload Filesystem Image**.
-- Copy toàn bộ các file trong `esp32/mp3/` vào thư mục `mp3/` trên thẻ nhớ MicroSD cắm vào DFPlayer Mini.
+### 2. Firmware ESP32 (`firmware`)
+```bash
+cd firmware
+cp include/secrets.example.h include/secrets.h   # điền URL/key Supabase thật (đã .gitignore)
+
+pio test -e native               # unit test trên máy tính
+pio run -e esp32dev -t upload    # build + nạp firmware
+pio run -e esp32dev -t uploadfs  # nạp data/profile.json vào LittleFS
+pio device monitor -e esp32dev   # serial monitor
+```
+- Mở thư mục `firmware/` bằng VSCode có extension **PlatformIO IDE**.
+- Chép `firmware/sounds/0001.mp3 ... 0009.mp3` vào thư mục `mp3/` trên thẻ microSD của DFPlayer Mini.
+- Chi tiết quy tắc code, sơ đồ module: [firmware/CLAUDE.md](firmware/CLAUDE.md).
 
 ### 3. Cơ Sở Dữ Liệu (`database`)
 - Mở bảng điều khiển Supabase project của bạn.

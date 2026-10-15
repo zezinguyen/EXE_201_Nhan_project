@@ -1,0 +1,7 @@
+{
+  "name": "core",
+  "version": "0.1.0",
+  "description": "Logic thuần C++ (không phụ thuộc Arduino/MCU) – chạy được unit test trên native",
+  "frameworks": "*",
+  "platforms": "*"
+}

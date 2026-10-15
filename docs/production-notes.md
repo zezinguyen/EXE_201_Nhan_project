@@ -12,11 +12,11 @@ ESP32 (2 nhân, nhiều ngoại vi) thừa so với nhu cầu. Firmware thực s
 
 | Lựa chọn | Nhận xét |
 |---|---|
-| **ESP32-C3** (module ESP32-C3-MINI / ESP-C3-12F) | **Ứng viên chính.** Rẻ hơn ESP32, cùng core Arduino-ESP32 nên phần lớn code `src/platform/esp32/` dùng lại được, có RMT cho IR, đủ RAM cho 2 TLS. Lưu ý: chỉ ADC1 (GPIO0–4) dùng được khi bật WiFi; ít GPIO hơn (~15) nhưng vẫn đủ. Cần kiểm tra IRremoteESP8266 chạy ổn trên C3 |
+| **ESP32-C3** (module ESP32-C3-MINI / ESP-C3-12F) | **Ứng viên chính.** Rẻ hơn ESP32, cùng core Arduino-ESP32 nên phần lớn code `firmware/src/platform/esp32/` dùng lại được, có RMT cho IR, đủ RAM cho 2 TLS. Lưu ý: chỉ ADC1 (GPIO0–4) dùng được khi bật WiFi; ít GPIO hơn (~15) nhưng vẫn đủ. Cần kiểm tra IRremoteESP8266 chạy ổn trên C3 |
 | ESP32-C2 / ESP8684 | Rẻ nhất họ ESP, nhưng RAM ít hơn và nhiều bản chỉ 2MB flash → không đủ chỗ cho OTA với IRac. Chỉ cân nhắc nếu cắt bớt IRac |
 | ESP8266 | Không nên: RAM quá ít cho 2 kết nối TLS cùng lúc |
 
-Cách chuyển trong dự án (xem CLAUDE.md "Thêm MCU / board mới"): thêm `[esp32c3_base]` + `[env:<board>]` trong `platformio.ini`, khối `BOARD_xxx` trong `config.h`, rồi kiểm tra từng file trong `src/platform/esp32/` (có thể dùng chung, chỉ tách file nào khác).
+Cách chuyển trong dự án (xem firmware/CLAUDE.md "Thêm MCU / board mới"): thêm `[esp32c3_base]` + `[env:<board>]` trong `firmware/platformio.ini`, khối `BOARD_xxx` trong `config.h`, rồi kiểm tra từng file trong `firmware/src/platform/esp32/` (có thể dùng chung, chỉ tách file nào khác).
 
 ## 2. Cập nhật firmware qua OTA
 
@@ -49,7 +49,7 @@ Thay bằng IC/module "power bank" gộp sạc + boost 5V + bảo vệ pin (VD h
 ## 4. Thay LED RGB bằng WS2812 (LED địa chỉ)
 
 - Chỉ tốn **1 GPIO** (thay vì 3), đủ màu, chỉnh độ sáng bằng phần mềm, bỏ được 3 điện trở.
-- Firmware: chỉ cần viết lại `src/modules/StatusLed.cpp` (header giữ nguyên), dùng RMT để xuất tín hiệu.
+- Firmware: chỉ cần viết lại `firmware/src/modules/StatusLed.cpp` (header giữ nguyên), dùng RMT để xuất tín hiệu.
 - Lưu ý:
   - WS2812B cần nguồn ~5V, nhưng mức logic "1" của nó là 0.7 × VDD ≈ 3.5V, **cao hơn 3.3V** của MCU → cần IC chuyển mức (VD 74AHCT1G125) hoặc chọn loại chạy được ở 3.3V (SK6812, WS2812C-2020…).
   - Mỗi LED ăn **~0.5–1mA ngay cả khi tắt**. Với thiết bị chạy pin nên cấp nguồn LED qua một chân/transistor để ngắt hẳn khi không cần.

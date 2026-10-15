@@ -279,7 +279,7 @@ Báo cáo không chứa tên WiFi, mật khẩu hay thông tin cá nhân.
 
 ## 5. Profile của mạch (bản sao trên mạch)
 
-Mạch tra mã IR **trong bộ nhớ của chính nó**, không hỏi cloud mỗi lần nhận lệnh. Mỗi mạch chỉ giữ thiết bị **mạch đó phát IR tới**, không phải cả nhà. Định dạng mạch đọc ✅ (ví dụ đầy đủ ở [data/profile.json](../data/profile.json)):
+Mạch tra mã IR **trong bộ nhớ của chính nó**, không hỏi cloud mỗi lần nhận lệnh. Mỗi mạch chỉ giữ thiết bị **mạch đó phát IR tới**, không phải cả nhà. Định dạng mạch đọc ✅ (ví dụ đầy đủ ở [firmware/data/profile.json](../firmware/data/profile.json)):
 
 ```json
 {
