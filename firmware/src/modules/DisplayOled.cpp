@@ -54,8 +54,13 @@ void DisplayOled::show(const DisplayStatus& status) {
     oled.setCursor(0, 0);
     oled.print(connectionStateText(status.connection));
 
-    oled.setCursor(80, 0);
-    oled.printf("%s%u%%", status.charging ? "+" : "", status.batteryPercent);
+    // Góc phải: "Pin 62%" hoặc "Sac 62%" khi đang sạc (chỉ khi cắm cổng sạc của module sạc,
+    // cắm USB vào board MCU không sạc pin). Căn phải, chữ 6px/ký tự.
+    char battery[12];
+    const int length = snprintf(battery, sizeof(battery), "%s %u%%", status.charging ? "Sac" : "Pin",
+                                status.batteryPercent);
+    oled.setCursor(OLED_WIDTH - length * 6, 0);
+    oled.print(battery);
 
     if (status.setupSsid != nullptr) {
         oled.setCursor(0, 14);
