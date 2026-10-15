@@ -19,11 +19,18 @@ void WifiManager::begin(SecureStore& store) {
 }
 
 void WifiManager::update(uint32_t nowMs) {
+    updatePortal(nowMs);
     if (isConnected()) {
         if (connecting_) {
             connecting_ = false;
             backoff_.reset();
+            connectedAtMs_ = nowMs;
             log_i("WiFi da ket noi, IP %s", WiFi.localIP().toString().c_str());
+            // Chỉ báo khi chính lần thử này thành công (ngay sau disconnect() status có thể vẫn là mạng cũ)
+            if (portalAttempt_) {
+                portalAttempt_ = false;
+                portal_.setStationState(PortalStationState::Connected);
+            }
         }
         disconnectedSinceMs_ = nowMs;
         return;
@@ -39,6 +46,10 @@ void WifiManager::update(uint32_t nowMs) {
         }
         connecting_ = false;
         WiFi.disconnect();
+        if (portalAttempt_) {
+            portalAttempt_ = false;
+            portal_.setStationState(PortalStationState::Failed);
+        }
         networkIndex_++;
         // Đã thử hết danh sách -> chờ theo backoff rồi thử lại từ đầu
         if (networkIndex_ >= store_->wifiCount()) {
@@ -58,6 +69,45 @@ bool WifiManager::isConnected() const { return WiFi.status() == WL_CONNECTED; }
 
 int8_t WifiManager::rssi() const { return isConnected() ? WiFi.RSSI() : 0; }
 
+void WifiManager::localIp(char* out, size_t outSize) const {
+    if (outSize == 0) {
+        return;
+    }
+    out[0] = '\0';
+    if (isConnected()) {
+        snprintf(out, outSize, "%s", WiFi.localIP().toString().c_str());
+    }
+}
+
+void WifiManager::updatePortal(uint32_t nowMs) {
+    if (!portalActive_) {
+        return;
+    }
+    WifiCredential credential;
+    if (portal_.update(credential)) {
+        store_->addWifi(credential);  // Lên đầu danh sách -> thử ngay
+        memset(&credential, 0, sizeof(credential));
+        log_i("Nhan WiFi moi tu trang cai dat");
+        WiFi.disconnect();
+        connecting_ = false;
+        networkIndex_ = 0;
+        backoff_.reset();
+        nextAttemptMs_ = nowMs;
+        portalSubmitted_ = true;
+        portalAttempt_ = true;
+        return;
+    }
+    if (!isConnected() || portalAttempt_) {
+        return;
+    }
+    const bool lingerDone = portalSubmitted_ && nowMs - connectedAtMs_ >= WIFI_SETUP_LINGER_MS;
+    const bool idleDone = !portalSubmitted_ && nowMs - portalStartMs_ >= WIFI_SETUP_IDLE_MS;
+    if (lingerDone || idleDone) {
+        log_i("Tat WiFi cai dat");
+        stopSetupPortal();
+    }
+}
+
 void WifiManager::startSetupPortal(uint32_t nowMs) {
     if (portalActive_) {
         return;
@@ -71,15 +121,18 @@ void WifiManager::startSetupPortal(uint32_t nowMs) {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(setupSsid_, setupPassword_);
     portalActive_ = true;
+    portalSubmitted_ = false;
+    portalAttempt_ = false;
+    portalStartMs_ = nowMs;
+    portal_.begin();
     log_i("Bat WiFi cai dat: %s", setupSsid_);  // Không log mật khẩu
-    // TODO(tuần 5): WebServer trang nhập WiFi -> store_->addWifi(), rồi stopSetupPortal()
-    (void)nowMs;
 }
 
 void WifiManager::stopSetupPortal() {
     if (!portalActive_) {
         return;
     }
+    portal_.end();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     portalActive_ = false;

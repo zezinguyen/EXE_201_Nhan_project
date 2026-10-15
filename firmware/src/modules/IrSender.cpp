@@ -30,11 +30,24 @@ bool IrSender::sendRaw(const uint16_t* durations, uint16_t length, uint16_t khz)
     return true;
 }
 
+bool IrSender::isAcProtocolSupported(const char* protocol) {
+    return protocol != nullptr && IRac::isProtocolSupported(strToDecodeType(protocol));
+}
+
+void IrSender::listAcProtocols(JsonArray out) {
+    for (int i = 0; i <= kLastDecodeType; i++) {
+        const decode_type_t type = static_cast<decode_type_t>(i);
+        if (IRac::isProtocolSupported(type)) {
+            out.add(typeToString(type));
+        }
+    }
+}
+
 bool IrSender::sendAc(const AcRequest& request) {
-    const decode_type_t type = strToDecodeType(request.protocol);
-    if (!IRac::isProtocolSupported(type)) {
+    if (!isAcProtocolSupported(request.protocol)) {
         return false;
     }
+    const decode_type_t type = strToDecodeType(request.protocol);
     stdAc::state_t state;
     IRac::initState(&state);
     state.protocol = type;

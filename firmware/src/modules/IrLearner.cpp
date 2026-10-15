@@ -90,11 +90,15 @@ bool IrLearner::readCapture(IrCapture& out) {
     if (decodeResults.overflow) {
         return false;
     }
-    const String protocol = typeToString(decodeResults.decode_type);
-    strncpy(out.protocol, protocol.c_str(), sizeof(out.protocol) - 1);
+    const String detected = typeToString(decodeResults.decode_type);
+    strncpy(out.detected, detected.c_str(), sizeof(out.detected) - 1);
+    out.detected[sizeof(out.detected) - 1] = '\0';
+    // Mã điều hòa nằm trong decodeResults.state (không vừa uint64 value) -> lưu raw để phát lại
+    const bool fitsValue = decodeResults.decode_type != decode_type_t::UNKNOWN && !hasACState(decodeResults.decode_type);
+    strncpy(out.protocol, fitsValue ? out.detected : "UNKNOWN", sizeof(out.protocol) - 1);
     out.protocol[sizeof(out.protocol) - 1] = '\0';
-    out.value = decodeResults.value;
-    out.bits = decodeResults.bits;
+    out.value = fitsValue ? decodeResults.value : 0;
+    out.bits = fitsValue ? decodeResults.bits : 0;
 
     uint16_t* raw = resultToRawArray(&decodeResults);
     const uint16_t length = getCorrectedRawLength(&decodeResults);

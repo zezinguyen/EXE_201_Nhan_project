@@ -17,7 +17,10 @@ pio test -e native                   # unit test trên máy tính (lib/core)
 pio test -e native -f test_backoff   # chạy một bộ test
 pio test -e esp32dev -f test_device_feedback   # test trên mạch thật: request giả -> IR + âm thanh
 pio test -e esp32dev -f test_device_hardware -v # kiểm tra nối dây từng linh kiện, OLED hướng dẫn, nút để chuyển bước
+pio run -e esp32dev_local -t upload  # BẢN THỬ không cần server (xem mục dưới)
 ```
+
+**Bản thử không cần server** (`env:esp32dev_local`, code ở `src/local/`, thay cho `main.cpp`): chưa có WiFi thì bật WiFi riêng (tên + mật khẩu trên OLED) → laptop nối vào, trang cài WiFi tự mở → vào WiFi nhà thì OLED hiện IP, mở `http://smarthome.local` để điều khiển điều hòa (mẫu Funiki R32), thử/dò giao thức, học và bấm phím. Phím học và giao thức lưu thẳng vào profile trên LittleFS (`ProfileEdit`). Web không có đăng nhập → **chỉ để thử, không đưa vào bản phát hành** (spec v3 đã bỏ điều khiển cục bộ).
 
 Thử mạch không cần app: mở `pio device monitor`, gõ một dòng JSON (bật `SERIAL_BRIDGE_ENABLED` trong config.h):
 `{"event":"command","payload":{"commandId":"c1","deviceId":"tv_living","action":"POWER","seq":1}}` → xem log `ACK ...` và nghe âm thanh.
@@ -30,7 +33,7 @@ Lần đầu: `cp include/secrets.example.h include/secrets.h` rồi điền gi�
 2. **`platformio.ini` tách theo khối**:
    - `[common]` cờ build chung; `[arduino_libs]` thư viện chạy trên mọi core Arduino.
    - `[<mcu>_base]` (VD `[esp32_base]`): `platform`, `lib_deps` riêng của họ MCU, `build_src_filter` trỏ vào `src/platform/<mcu>/`.
-   - `[env:<board>]`: chỉ `extends`, `board`, và `-DBOARD_xxx`.
+   - `[env:<board>]`: chỉ `extends`, `board`, và `-DBOARD_xxx`. Ngoại lệ: env bản thử (`esp32dev_local`) thêm `build_src_filter` lấy từ `[local_web]`.
    - Thư viện mới: chạy được mọi MCU → `[arduino_libs]`; chỉ một họ MCU → `[<mcu>_base]`. Luôn ghim phiên bản (`@^x.y.z`).
 3. **`include/config.h` là nơi duy nhất** đặt chân GPIO và thông số (thời gian, ngưỡng, kích thước bộ đệm, đường dẫn file). Module không viết số "magic". Chân đặt trong khối `#if defined(BOARD_xxx)`. Bí mật (URL, key, CA) ở `include/secrets.h`.
 4. **Mỗi module có `.h` + `.cpp`**:
@@ -51,15 +54,17 @@ lib/core/src/             logic thuần C++, có unit test:
   CommandGuard            hạn dùng, chống trùng commandId, seq khi chưa có NTP, giới hạn tốc độ
   RateLimiter, RingBuffer, IrCompare, BatteryGauge, ButtonDetector, ErrorThrottle, ErrorCodes,
   Password                mật khẩu ngẫu nhiên cho WiFi cài đặt (hiện trên OLED)
+  ProfileEdit             sửa profile trên mạch (bản thử): thêm/xoá phím học, đổi giao thức điều hòa
 src/main.cpp              chỉ khởi tạo + nối module
 src/app/CommandHandler    broadcast từ app -> kiểm tra -> phát IR -> ACK; học lệnh (từ app hoặc từ nút)
 src/app/Feedback          sự kiện -> file âm thanh (mp3)
 src/app/SerialBridge      nhận request JSON qua Serial để thử khi chưa có app
 src/app/Outbox            hàng đợi ghi Supabase qua REST: mã học từ nút (learned_codes), báo lỗi (error_reports)
 src/modules/              header của mọi module + phần triển khai dùng chung
-src/platform/esp32/       triển khai riêng ESP32: Board, PowerManager, WifiManager,
+src/platform/esp32/       triển khai riêng ESP32: Board, PowerManager, WifiManager, SetupPortal (trang cài WiFi),
                           SecureStore (NVS), TimeSync, AudioPlayer (UART), DeviceStore (LittleFS),
                           SupabaseRest (HTTPS)
+src/local/                BẢN THỬ (env esp32dev_local): LocalMain thay main.cpp, LocalWebServer (web + mDNS)
 data/profile.json         profile mẫu (định dạng bản sao trên mạch)
 sounds/                   9 file mp3 chép vào thẻ nhớ DFPlayer (thư mục /mp3/)
 test/test_*/              mỗi thư mục một bộ test Unity
@@ -82,9 +87,10 @@ test/test_*/              mỗi thư mục một bộ test Unity
 - **Âm thanh**: mọi chỗ phát tiếng đi qua `app/Feedback`; số file khớp `AudioTrack` (`lib/core/src/AudioTracks.h`), thẻ nhớ đặt `/mp3/0001.mp3`... (bảng ở spec mục 3.1).
 - **Realtime**: heartbeat Phoenix (topic `phoenix`) ~25s là bắt buộc; quá 10s không trả lời thì kết nối lại. Đích: kênh private `realtime:board:<boardId>`, mạch chỉ nghe, chỉ server gửi; ACK/học lệnh/trạng thái gửi lên bằng RPC. Firmware hiện còn dùng kênh `home:<homeId>` + broadcast + Presence (đánh dấu 🔁 trong contracts.md), cần đổi.
 - **Lệnh**: quá hạn/seq cũ → bỏ qua không ACK; trùng `commandId` → ACK lại nhưng không phát IR. Đang gán phím thì không phát IR (`E_BUSY`).
-- **Mã IR 64 bit** gửi/nhận dạng chuỗi hex (`"0xE0E040BF"`) vì JS không giữ đủ chính xác.
+- **Mã IR 64 bit** gửi/nhận dạng chuỗi hex (`"0xE0E040BF"`) vì JS không giữ đủ chính xác. Mã điều hòa (giao thức có state > 64 bit: GREE, MIDEA…) khi học được lưu dạng `raw`; tên giao thức nhận ra nằm ở `IrCapture::detected`.
+- **Cổng 80**: trang cài WiFi (`SetupPortal`) và web bản thử dùng chung cổng → web bản thử chỉ bật khi WiFi cài đặt đã tắt.
 - Flash: IRac chiếm nhiều chỗ → dùng bảng phân vùng `min_spiffs.csv` (app ~1.9MB, LittleFS 128KB).
 
 ## Trạng thái hiện tại
 
-Khung đã build được và test `lib/core` đã chạy qua; chưa chạy thử trên phần cứng. Các phần còn `TODO(tuần N)` theo lộ trình spec mục 13: trang cài WiFi trên AP, đăng ký ghép đôi với Edge Function, tải profile qua HTTPS khi `profileVersion` đổi, lưu hàng đợi Outbox (lỗi + mã học) vào LittleFS, tạo bảng `learned_codes`/`error_reports` + RLS phía Supabase, làm mới token Realtime, lưu trạng thái điều hòa vào NVS, tiết kiệm pin giai đoạn 2. Chưa chuyển sang giao tiếp qua server: đổi kênh sang `board:<boardId>`, gửi ACK/sự kiện học lệnh/trạng thái bằng RPC thay cho broadcast + Presence (contracts.md, các mục 🔁).
+Khung đã build được và test `lib/core` đã chạy qua; chưa chạy thử trên phần cứng. Trang cài WiFi trên AP đã có (`SetupPortal`). Các phần còn `TODO(tuần N)` theo lộ trình spec mục 13: đăng ký ghép đôi với Edge Function, tải profile qua HTTPS khi `profileVersion` đổi, lưu hàng đợi Outbox (lỗi + mã học) vào LittleFS, tạo bảng `learned_codes`/`error_reports` + RLS phía Supabase, làm mới token Realtime, lưu trạng thái điều hòa vào NVS, tiết kiệm pin giai đoạn 2. Chưa chuyển sang giao tiếp qua server: đổi kênh sang `board:<boardId>`, gửi ACK/sự kiện học lệnh/trạng thái bằng RPC thay cho broadcast + Presence (contracts.md, các mục 🔁).

@@ -330,7 +330,7 @@ Hai dạng, dùng ở profile, `learn_result` và `learned_codes.ir`:
 
 | Trường     | Quy tắc                                                                                                                                                    |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protocol` | Tên protocol theo thư viện **IRremoteESP8266** (`NEC`, `SAMSUNG`, `SONY`, `LG`, `PANASONIC`, …), viết hoa. `UNKNOWN` = mạch không giải mã được, dùng `raw` |
+| `protocol` | Tên protocol theo thư viện **IRremoteESP8266** (`NEC`, `SAMSUNG`, `SONY`, `LG`, `PANASONIC`, …), viết hoa. `UNKNOWN` = mạch không giải mã được, hoặc là mã điều hòa dài hơn 64 bit (GREE, MIDEA…) → dùng `raw` |
 | `code`     | **Chuỗi hex** có tiền tố `0x`. Không dùng number: JS mất chính xác với số 64 bit                                                                           |
 | `bits`     | Số bit của mã                                                                                                                                              |
 | `raw`      | Mảng thời lượng µs (xen kẽ có xung / không xung), mỗi phần tử ≤ 65535, **≤ 600 phần tử**                                                                   |

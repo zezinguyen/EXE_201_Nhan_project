@@ -94,6 +94,18 @@ pio device monitor -e esp32dev   # serial monitor
 - Chép `firmware/sounds/0001.mp3 ... 0009.mp3` vào thư mục `mp3/` trên thẻ microSD của DFPlayer Mini.
 - Chi tiết quy tắc code, sơ đồ module: [firmware/CLAUDE.md](firmware/CLAUDE.md).
 
+#### Bản thử không cần server (`esp32dev_local`)
+Dùng khi chưa có backend: điều khiển mạch bằng trang web trong mạng WiFi nhà.
+```bash
+cd firmware
+pio run -e esp32dev_local -t upload
+```
+1. **Cài WiFi**: mạch chưa có WiFi sẽ tự bật WiFi riêng `SmartHome-XXXX`. Tên và mật khẩu hiện trên OLED (muốn cài lại thì giữ nút 10 giây). Laptop nối vào WiFi đó, trang cài đặt tự mở (nếu không, vào `http://192.168.4.1`). Chọn WiFi nhà (2.4GHz), nhập mật khẩu, trang sẽ hiện IP của mạch.
+2. **Điều khiển**: khoảng 30 giây sau WiFi riêng tự tắt. Laptop về lại WiFi nhà, mở `http://smarthome.local` hoặc `http://<IP trên OLED>`.
+   - **Điều hòa Funiki R32**: bật/tắt, nhiệt độ, chế độ, quạt. Funiki không có sẵn trong thư viện IR, nên phải tìm giao thức trước: *Thử lần lượt* (mỗi lần gửi lệnh bật theo một giao thức, máy kêu bíp là đúng) hoặc *Dò bằng remote* (bấm remote thật vào mắt thu, trang báo giao thức).
+   - **Học phím**: học mã từ remote bất kỳ, đặt tên, bấm lại trên web.
+3. Web không có đăng nhập, ai cùng WiFi cũng điều khiển được, nên **chỉ dùng để thử**.
+
 ### 3. Cơ Sở Dữ Liệu (`database`)
 - Mở bảng điều khiển Supabase project của bạn.
 - Truy cập vào **SQL Editor**, mở file [database/supabase_schema.sql](database/supabase_schema.sql) và bấm **Run**.

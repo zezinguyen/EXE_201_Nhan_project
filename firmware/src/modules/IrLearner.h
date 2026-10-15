@@ -5,7 +5,8 @@
 #include "config.h"
 
 struct IrCapture {
-    char protocol[24];  // "UNKNOWN" nếu không giải mã được -> dùng raw
+    char protocol[24];  // "UNKNOWN" nếu không giải mã được hoặc là mã điều hòa (state > 64 bit) -> dùng raw
+    char detected[24];  // Giao thức nhận dạng được (kể cả điều hòa), "UNKNOWN" nếu không biết
     uint64_t value;
     uint16_t bits;
     uint16_t raw[IR_RAW_MAX_LENGTH];
@@ -33,6 +34,7 @@ public:
     void stop();
     LearnEvent update(uint32_t nowMs);
     bool isActive() const { return active_; }
+    // Lần thu đầu tiên: đọc được ngay sau FirstCaptured (để biết giao thức), đủ tin cậy sau Success
     const IrCapture& result() const { return captures_[0]; }
 
 private:

@@ -165,8 +165,8 @@ const char* CommandHandler::sendDeviceCommand(JsonObjectConst device, const char
     // Điều hòa: gửi cả trạng thái qua IRac
     const char* acProtocol = device["irac_protocol"];
     if (acProtocol != nullptr) {
-        const int16_t tempMin = device["limits"]["temp_min"] | 16;
-        const int16_t tempMax = device["limits"]["temp_max"] | 30;
+        const int16_t tempMin = device["limits"]["temp_min"] | AC_TEMP_MIN_DEFAULT;
+        const int16_t tempMax = device["limits"]["temp_max"] | AC_TEMP_MAX_DEFAULT;
         AcRequest request;
         request.protocol = acProtocol;
         request.power = strcmp(action, "POWER_OFF") != 0 && (params["power"] | true);

@@ -1,4 +1,5 @@
 #pragma once
+#include <ArduinoJson.h>
 #include <stdint.h>
 
 struct AcRequest {
@@ -17,4 +18,9 @@ public:
     bool sendCode(const char* protocol, uint64_t value, uint16_t bits);
     bool sendRaw(const uint16_t* durations, uint16_t length, uint16_t khz);
     bool sendAc(const AcRequest& request);
+
+    // Giao thức điều hòa gửi được qua IRac (VD "MIDEA")
+    static bool isAcProtocolSupported(const char* protocol);
+    // Thêm tên mọi giao thức điều hòa IRac hỗ trợ vào out
+    static void listAcProtocols(JsonArray out);
 };

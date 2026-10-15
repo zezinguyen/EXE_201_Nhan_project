@@ -81,6 +81,13 @@ constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 15UL * 1000;
 constexpr uint32_t WIFI_SETUP_AP_AFTER_MS = 5UL * 60 * 1000; // Mất WiFi lâu -> bật AP cài đặt
 constexpr const char* WIFI_SETUP_AP_PREFIX = "SmartHome-";
 constexpr uint8_t WIFI_SETUP_AP_PASSWORD_LENGTH = 10; // Sinh ngẫu nhiên mỗi lần, hiện trên OLED
+// Trang cài WiFi trên WiFi riêng (captive portal): chỉ để nhập WiFi nhà (spec 9.2 D)
+constexpr uint16_t WEB_PORT = 80;
+constexpr uint16_t DNS_PORT = 53;
+constexpr uint8_t WIFI_SCAN_MAX_RESULTS = 15;
+constexpr uint32_t WIFI_SETUP_LINGER_MS = 30UL * 1000;     // Vào được WiFi nhà rồi giữ WiFi riêng thêm để trang kịp hiện IP
+constexpr uint32_t WIFI_SETUP_IDLE_MS = 10UL * 60 * 1000;  // Đang có WiFi nhà mà không ai nhập WiFi mới -> tắt WiFi riêng
+constexpr size_t WEB_MAX_BODY = 2048;                     // Request JSON lớn nhất nhận qua web
 
 constexpr uint32_t RECONNECT_BASE_MS = 2000;   // 2s -> 4s -> 8s ... -> 60s
 constexpr uint32_t RECONNECT_MAX_MS = 60UL * 1000;
@@ -114,6 +121,8 @@ constexpr uint16_t IR_DEFAULT_KHZ = 38;
 constexpr uint32_t IR_LEARN_TIMEOUT_MS = 15UL * 1000;
 constexpr uint8_t IR_MATCH_TOLERANCE_PERCENT = 25;
 constexpr uint16_t IR_MATCH_MIN_TOLERANCE_US = 150;
+constexpr int16_t AC_TEMP_MIN_DEFAULT = 16;        // Khi profile không có limits
+constexpr int16_t AC_TEMP_MAX_DEFAULT = 30;
 constexpr uint8_t IR_LEARN_MAX_FAILS = 3;          // Quá số lần -> E_LEARN_FAIL
 constexpr uint8_t LEARNED_CODE_QUEUE_SIZE = 4;     // Mã học từ nút chờ gửi khi mất mạng
 
@@ -153,6 +162,7 @@ constexpr size_t ERROR_LOG_CAPACITY = 50;                  // Hàng đợi gửi
 constexpr const char* PROFILE_PATH = "/profile.json";
 constexpr const char* PROFILE_BACKUP_PATH = "/profile.bak.json";
 constexpr const char* PROFILE_TEMP_PATH = "/profile.tmp.json";
+constexpr size_t PROFILE_MAX_BYTES = 32UL * 1024;  // Giữ toàn bộ trong RAM (contracts.md mục 5)
 
 // -----------------------------------------------------------------------------
 // Thời gian / ghép đôi
@@ -172,3 +182,20 @@ constexpr uint32_t DISPLAY_REFRESH_MS = 1000;
 // Tắt khi phát hành: ai cắm USB vào mạch cũng gửi lệnh được.
 constexpr bool SERIAL_BRIDGE_ENABLED = true;
 constexpr size_t SERIAL_BRIDGE_MAX_LINE = 1024;
+
+// -----------------------------------------------------------------------------
+// Bản thử không cần server (env esp32dev_local, src/local/)
+// -----------------------------------------------------------------------------
+constexpr const char* LOCAL_MDNS_HOSTNAME = "smarthome";  // -> http://smarthome.local
+constexpr const char* LOCAL_AC_DEVICE_ID = "ac_funiki";
+constexpr const char* LOCAL_AC_DEVICE_NAME = "Điều hòa Funiki R32";
+constexpr const char* LOCAL_AC_DEFAULT_PROTOCOL = "MIDEA";
+// Funiki không có trong IRremoteESP8266 (máy OEM). Thử lần lượt các giao thức hay gặp ở máy OEM,
+// hoặc dò bằng remote thật trên trang web.
+constexpr const char* LOCAL_AC_CANDIDATES[] = {
+    "MIDEA", "COOLIX", "GREE", "KELVINATOR", "TCL112AC", "HAIER_AC_YRW02", "HAIER_AC", "ELECTRA_AC",
+    "AIRWELL", "KELON", "MIRAGE", "TECO", "VESTEL_AC", "TECHNIBEL_AC", "CARRIER_AC64", "DAIKIN",
+};
+constexpr const char* LOCAL_LEARN_DEVICE_ID = "remote_hoc";  // Phím học bằng mắt thu lưu vào đây
+constexpr const char* LOCAL_LEARN_DEVICE_NAME = "Phím đã học";
+constexpr size_t LOCAL_NAME_MAX_BYTES = 32;                  // Tên phím / thiết bị (UTF-8)

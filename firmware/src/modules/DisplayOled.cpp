@@ -70,7 +70,8 @@ void DisplayOled::show(const DisplayStatus& status) {
         oled.print(status.pairingCode);
         oled.setTextSize(1);
     } else if (status.message != nullptr) {
-        oled.setCursor(0, 24);
+        // Đang hiện WiFi riêng (dòng 14, 26) thì đẩy thông báo xuống dưới
+        oled.setCursor(0, status.setupSsid != nullptr ? 42 : 24);
         oled.print(status.message);
     }
     oled.display();

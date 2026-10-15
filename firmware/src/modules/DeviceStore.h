@@ -16,6 +16,8 @@ public:
     bool loadFromJson(const char* json, size_t length);  // Chỉ nạp vào RAM (test, debug)
 
     uint32_t profileVersion() const;
+    // Toàn bộ profile đang nạp (đọc, hoặc chép ra để sửa rồi save())
+    const JsonDocument& document() const { return doc_; }
     JsonObjectConst findDevice(const char* deviceId) const;
     JsonObjectConst findCommand(const char* deviceId, const char* action) const;
 
