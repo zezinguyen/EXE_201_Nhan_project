@@ -53,7 +53,10 @@ void LocalWebServer::begin() {
         server.on("/api/learn/cancel", HTTP_POST, [this] { handleLearnCancel(); });
         server.on("/api/learn/save", HTTP_POST, [this] { handleLearnSave(); });
         server.on("/api/button/delete", HTTP_POST, [this] { handleButtonDelete(); });
-        server.onNotFound([] { server.send(404, "text/plain", "Not found"); });
+        server.onNotFound([] {
+            log_i("Web 404: %s", server.uri().c_str());
+            server.send(404, "text/plain", "Not found");
+        });
         routesAdded_ = true;
     }
     server.begin();

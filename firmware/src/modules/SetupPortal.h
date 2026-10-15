@@ -21,7 +21,8 @@ public:
     void end();
     // true khi người dùng vừa gửi WiFi mới (ghi vào out)
     bool update(WifiCredential& out);
-    void setStationState(PortalStationState state);
+    // reason: mã lý do ngắt WiFi của MCU khi Failed (0 = không rõ) -> trang hiện gợi ý sửa
+    void setStationState(PortalStationState state, uint8_t reason = 0);
     bool isActive() const { return active_; }
 
 private:

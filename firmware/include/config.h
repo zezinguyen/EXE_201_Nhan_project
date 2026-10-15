@@ -114,9 +114,9 @@ constexpr uint32_t COMMAND_RATE_WINDOW_MS = 1000; // ... trong cửa sổ này
 // -----------------------------------------------------------------------------
 // IR
 // -----------------------------------------------------------------------------
-constexpr uint16_t IR_RX_BUFFER_SIZE = 1024;
+constexpr uint16_t IR_RX_BUFFER_SIZE = 2048;          // Remote điều hòa: gói dài + lặp lại, 1024 dễ tràn
 constexpr uint8_t IR_RX_TIMEOUT_MS = 50;          // 50ms để thu được gói dài của điều hòa
-constexpr uint16_t IR_RAW_MAX_LENGTH = 600;
+constexpr uint16_t IR_RAW_MAX_LENGTH = 1024;
 constexpr uint16_t IR_DEFAULT_KHZ = 38;
 constexpr uint32_t IR_LEARN_TIMEOUT_MS = 15UL * 1000;
 constexpr uint8_t IR_MATCH_TOLERANCE_PERCENT = 25;
@@ -189,11 +189,11 @@ constexpr size_t SERIAL_BRIDGE_MAX_LINE = 1024;
 constexpr const char* LOCAL_MDNS_HOSTNAME = "smarthome";  // -> http://smarthome.local
 constexpr const char* LOCAL_AC_DEVICE_ID = "ac_funiki";
 constexpr const char* LOCAL_AC_DEVICE_NAME = "Điều hòa Funiki R32";
-constexpr const char* LOCAL_AC_DEFAULT_PROTOCOL = "MIDEA";
+constexpr const char* LOCAL_AC_DEFAULT_PROTOCOL = "COOLIX";  // Đã dò bằng remote Funiki R32 thật (15/10/2026)
 // Funiki không có trong IRremoteESP8266 (máy OEM). Thử lần lượt các giao thức hay gặp ở máy OEM,
 // hoặc dò bằng remote thật trên trang web.
 constexpr const char* LOCAL_AC_CANDIDATES[] = {
-    "MIDEA", "COOLIX", "GREE", "KELVINATOR", "TCL112AC", "HAIER_AC_YRW02", "HAIER_AC", "ELECTRA_AC",
+    "COOLIX", "MIDEA", "GREE", "KELVINATOR", "TCL112AC", "HAIER_AC_YRW02", "HAIER_AC", "ELECTRA_AC",
     "AIRWELL", "KELON", "MIRAGE", "TECO", "VESTEL_AC", "TECHNIBEL_AC", "CARRIER_AC64", "DAIKIN",
 };
 constexpr const char* LOCAL_LEARN_DEVICE_ID = "remote_hoc";  // Phím học bằng mắt thu lưu vào đây

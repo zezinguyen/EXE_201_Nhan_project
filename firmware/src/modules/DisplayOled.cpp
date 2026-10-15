@@ -2,6 +2,7 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Elapsed.h>
 #include <Wire.h>
 
 #include "config.h"
@@ -39,7 +40,7 @@ void DisplayOled::sleep() {
 }
 
 void DisplayOled::update(uint32_t nowMs) {
-    if (awake_ && nowMs - wakeMs_ >= OLED_TIMEOUT_MS) {
+    if (awake_ && elapsedMs(nowMs, wakeMs_) >= OLED_TIMEOUT_MS) {
         sleep();
     }
 }

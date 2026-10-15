@@ -1,6 +1,7 @@
 #include "Provisioning.h"
 
 #include <Arduino.h>
+#include <Elapsed.h>
 #include <stdio.h>
 
 #include "Board.h"
@@ -9,7 +10,7 @@
 void Provisioning::begin(SecureStore& store) { store_ = &store; }
 
 void Provisioning::update(uint32_t nowMs) {
-    if (pairing_ && nowMs - startMs_ >= PAIRING_CODE_TTL_MS) {
+    if (pairing_ && elapsedMs(nowMs, startMs_) >= PAIRING_CODE_TTL_MS) {
         log_i("Ma ghep doi het han");
         cancelPairing();
     }

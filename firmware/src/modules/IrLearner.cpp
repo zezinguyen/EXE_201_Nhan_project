@@ -4,6 +4,7 @@
 #include <IRrecv.h>
 #include <IRremoteESP8266.h>
 #include <IRutils.h>
+#include <Elapsed.h>
 #include <IrCompare.h>
 #include <string.h>
 
@@ -36,6 +37,7 @@ void IrLearner::begin() {
 }
 
 void IrLearner::start(uint32_t nowMs) {
+    log_i("Bat dau hoc lenh, cho %lus", IR_LEARN_TIMEOUT_MS / 1000);
     setPower(true);
     irRecv.enableIRIn();
     captureCount_ = 0;
@@ -56,7 +58,8 @@ LearnEvent IrLearner::update(uint32_t nowMs) {
     if (!active_) {
         return LearnEvent::None;
     }
-    if (nowMs - startMs_ >= IR_LEARN_TIMEOUT_MS) {
+    if (elapsedMs(nowMs, startMs_) >= IR_LEARN_TIMEOUT_MS) {
+        log_w("Hoc lenh het gio, da thu %u goi", captureCount_);
         stop();
         return LearnEvent::Timeout;
     }
@@ -75,6 +78,7 @@ LearnEvent IrLearner::update(uint32_t nowMs) {
         return LearnEvent::FirstCaptured;
     }
     if (!capturesMatch()) {
+        log_w("2 lan bam khong khop (%u)", mismatches_ + 1);
         captureCount_ = 0;
         if (++mismatches_ >= IR_LEARN_MAX_FAILS) {
             stop();
@@ -88,6 +92,7 @@ LearnEvent IrLearner::update(uint32_t nowMs) {
 
 bool IrLearner::readCapture(IrCapture& out) {
     if (decodeResults.overflow) {
+        log_w("Goi IR qua dai, tran bo dem (tang IR_RX_BUFFER_SIZE)");
         return false;
     }
     const String detected = typeToString(decodeResults.decode_type);
@@ -103,6 +108,8 @@ bool IrLearner::readCapture(IrCapture& out) {
     uint16_t* raw = resultToRawArray(&decodeResults);
     const uint16_t length = getCorrectedRawLength(&decodeResults);
     out.rawLength = length > IR_RAW_MAX_LENGTH ? IR_RAW_MAX_LENGTH : length;
+    log_i("Thu IR: %s, %u bit, %u xung%s", out.detected, decodeResults.bits, length,
+          length > IR_RAW_MAX_LENGTH ? " (bi cat, tang IR_RAW_MAX_LENGTH)" : "");
     memcpy(out.raw, raw, out.rawLength * sizeof(uint16_t));
     delete[] raw;
     return out.rawLength > 0;

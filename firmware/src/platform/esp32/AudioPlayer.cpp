@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <DFRobotDFPlayerMini.h>
+#include <Elapsed.h>
 
 #include "config.h"
 
@@ -32,7 +33,7 @@ void AudioPlayer::begin() {
 void AudioPlayer::update(uint32_t nowMs) {
     switch (state_) {
         case State::Booting:
-            if (nowMs - stateStartMs_ < AUDIO_BOOT_DELAY_MS) {
+            if (elapsedMs(nowMs, stateStartMs_) < AUDIO_BOOT_DELAY_MS) {
                 return;
             }
             audioSerial.begin(AUDIO_BAUD, SERIAL_8N1, PIN_AUDIO_RX, PIN_AUDIO_TX);
@@ -53,7 +54,7 @@ void AudioPlayer::update(uint32_t nowMs) {
             break;
         case State::Playing:
             if ((dfPlayer.available() && dfPlayer.readType() == DFPlayerPlayFinished) ||
-                nowMs - stateStartMs_ >= AUDIO_MAX_PLAY_MS) {
+                elapsedMs(nowMs, stateStartMs_) >= AUDIO_MAX_PLAY_MS) {
                 state_ = State::Idle;
             }
             break;

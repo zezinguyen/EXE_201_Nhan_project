@@ -7,6 +7,10 @@
 #include "config.h"
 #include "modules/Board.h"
 
+namespace {
+volatile uint8_t lastDisconnectReason = 0;  // Ghi từ tác vụ sự kiện WiFi
+}  // namespace
+
 WifiManager::WifiManager() : backoff_(RECONNECT_BASE_MS, RECONNECT_MAX_MS, RECONNECT_JITTER_PERCENT) {}
 
 void WifiManager::begin(SecureStore& store) {
@@ -14,6 +18,18 @@ void WifiManager::begin(SecureStore& store) {
     WiFi.persistent(false);  // Tự quản lý danh sách mạng trong SecureStore
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(false);
+    // Nhiều điểm phát cùng tên (router + kích sóng): quét hết kênh, chọn điểm sóng mạnh nhất
+    // thay vì điểm đầu tiên tìm thấy
+    WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+    WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+    // Lý do rớt/không vào được WiFi (sai mật khẩu, không thấy mạng...) – không log SSID
+    WiFi.onEvent(
+        [](WiFiEvent_t, WiFiEventInfo_t info) {
+            const auto reason = static_cast<wifi_err_reason_t>(info.wifi_sta_disconnected.reason);
+            lastDisconnectReason = reason;
+            log_w("WiFi ngat, ly do %u (%s)", reason, WiFi.disconnectReasonName(reason));
+        },
+        ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     disconnectedSinceMs_ = millis();
     nextAttemptMs_ = disconnectedSinceMs_;
 }
@@ -45,10 +61,12 @@ void WifiManager::update(uint32_t nowMs) {
             return;
         }
         connecting_ = false;
+        log_w("Het %lus chua vao duoc WiFi #%u (status %d)", WIFI_CONNECT_TIMEOUT_MS / 1000, networkIndex_,
+              WiFi.status());
         WiFi.disconnect();
         if (portalAttempt_) {
             portalAttempt_ = false;
-            portal_.setStationState(PortalStationState::Failed);
+            portal_.setStationState(PortalStationState::Failed, lastDisconnectReason);
         }
         networkIndex_++;
         // Đã thử hết danh sách -> chờ theo backoff rồi thử lại từ đầu
@@ -147,6 +165,7 @@ void WifiManager::tryNextNetwork(uint32_t nowMs) {
         return;
     }
     log_i("Thu ket noi WiFi #%u", networkIndex_);  // Không log SSID/mật khẩu
+    lastDisconnectReason = 0;
     WiFi.begin(credential.ssid, credential.password);
     connecting_ = true;
     attemptStartMs_ = nowMs;

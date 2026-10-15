@@ -31,8 +31,8 @@ button:disabled{opacity:.6}
 <button class="sec" id="rescan" type="button">Tìm lại</button>
 </div>
 <form class="card" id="f">
-<label for="ssid">Tên WiFi</label><input id="ssid" maxlength="32" required autocomplete="off">
-<label for="pw">Mật khẩu</label><input id="pw" type="password" maxlength="64" autocomplete="off">
+<label for="ssid">Tên WiFi</label><input id="ssid" maxlength="32" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+<label for="pw">Mật khẩu</label><input id="pw" type="password" maxlength="64" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
 <div class="row"><input type="checkbox" id="show"><label for="show" style="margin:0">Hiện mật khẩu</label></div>
 <button id="go">Kết nối</button>
 <p id="st"></p>
@@ -58,7 +58,7 @@ function status(t,c){const s=$('st');s.textContent=t;s.className=c||''}
 async function poll(){
   try{const d=await (await fetch('/status')).json();
     if(d.state==='connected'){status('Đã vào WiFi nhà. Địa chỉ của mạch: http://'+d.ip+'  — nối laptop/điện thoại về WiFi nhà rồi mở địa chỉ này. WiFi cài đặt sẽ tự tắt sau ít phút.','ok');$('go').disabled=false;return}
-    if(d.state==='failed'){status('Không vào được WiFi. Kiểm tra mật khẩu rồi thử lại.','err');$('go').disabled=false;return}
+    if(d.state==='failed'){status((d.hint||'Không vào được WiFi. Kiểm tra mật khẩu rồi thử lại.')+(d.reason?' (mã '+d.reason+')':''),'err');$('go').disabled=false;return}
   }catch(e){}
   setTimeout(poll,1500)
 }

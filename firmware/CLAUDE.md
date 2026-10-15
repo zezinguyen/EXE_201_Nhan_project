@@ -42,7 +42,7 @@ Lần đầu: `cp include/secrets.example.h include/secrets.h` rồi điền gi�
    - Không dùng `#ifdef ESP32` rải rác trong module chung — tách sang `platform/` thay vì vậy.
 5. **Đặt tên**: hàm và biến **camelCase** (`sendCode`, `batteryPercent`) — **không dùng snake_case**. Lớp/enum/struct PascalCase. Thành viên private có hậu tố `_`. Hằng trong `config.h` UPPER_SNAKE_CASE; hằng cục bộ `kName`. (Khoá JSON giữ đúng như spec/Supabase, VD `irac_protocol`.)
 6. **Viết test khi test được**: logic không đụng phần cứng đặt trong `lib/core` (C++ thuần, không include `Arduino.h`) và có test Unity trong `test/test_<tên>/test_main.cpp`. Test cần phần cứng thật đặt tên `test/test_device_<tên>/` (env native tự bỏ qua; được dùng code trong `src/` vì `test_build_src = yes`, `main.cpp` tắt khi `PIO_UNIT_TESTING`). Thời gian, số ngẫu nhiên... truyền vào làm tham số để test được (xem `Backoff::nextDelayMs(randomValue)`). Chạy `pio test -e native` trước khi báo xong.
-7. Không chặn vòng lặp: không `delay()` dài trong module, dùng `update(nowMs)` + máy trạng thái (xem `AudioPlayer`). `millis()` tràn số → luôn so sánh dạng `nowMs - startMs >= duration`.
+7. Không chặn vòng lặp: không `delay()` dài trong module, dùng `update(nowMs)` + máy trạng thái (xem `AudioPlayer`). `millis()` tràn số → so sánh dạng `nowMs - startMs >= duration`; nếu mốc bắt đầu có thể đặt bằng `millis()` giữa vòng lặp (nút, web) thì dùng `elapsedMs(nowMs, startMs)` (`lib/core/src/Elapsed.h`), nếu không phép trừ quay vòng thành hết giờ ngay.
 
 ## Cấu trúc
 

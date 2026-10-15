@@ -47,7 +47,9 @@ bool DeviceStore::save(const char* json, size_t length) {
         return false;
     }
 
-    LittleFS.remove(PROFILE_BACKUP_PATH);
+    if (LittleFS.exists(PROFILE_BACKUP_PATH)) {
+        LittleFS.remove(PROFILE_BACKUP_PATH);
+    }
     if (LittleFS.exists(PROFILE_PATH)) {
         LittleFS.rename(PROFILE_PATH, PROFILE_BACKUP_PATH);
     }
