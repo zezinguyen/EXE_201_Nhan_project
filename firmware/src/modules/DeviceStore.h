@@ -13,6 +13,7 @@ public:
     bool begin();                                // Mount filesystem
     bool load();                                 // Đọc profile (hỏng thì thử bản sao lưu)
     bool save(const char* json, size_t length);  // Kiểm tra hợp lệ, ghi file tạm, giữ bản cũ
+    bool save(const JsonDocument& doc);          // Như trên, từ bản đã sửa (quá PROFILE_MAX_BYTES -> false)
     bool loadFromJson(const char* json, size_t length);  // Chỉ nạp vào RAM (test, debug)
 
     uint32_t profileVersion() const;

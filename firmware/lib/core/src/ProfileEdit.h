@@ -2,8 +2,8 @@
 #include <ArduinoJson.h>
 #include <stddef.h>
 
-// Sửa profile (định dạng docs/contracts.md mục 5) ngay trên mạch – chỉ bản thử không có server dùng.
-// Bản chính thức nhận profile từ Supabase, không tự sửa.
+// Sửa profile (định dạng docs/contracts.md mục 5) ngay trên mạch: bản thử (web) và app/ProfileSetup (TẠM,
+// contracts.md mục 3.8). Khi server quản lý profile thì mạch nhận profile từ Supabase, không tự sửa.
 // Các hàm sửa trả về true khi profile đã đổi; khi đó profileVersion tăng 1.
 
 // Tên phím/thiết bị: 1..maxBytes byte, không có ký tự điều khiển (UTF-8 được phép).

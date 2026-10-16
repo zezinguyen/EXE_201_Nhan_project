@@ -11,7 +11,7 @@ enum class LedPattern : uint8_t {
     LowBattery,  // Đỏ, 3 nháy ngắn
 };
 
-// LED RGB trạng thái, nháy theo mẫu không chặn (non-blocking). Màu xem spec 9.3.
+// LED RGB trạng thái, nháy theo mẫu không chặn (non-blocking), độ sáng PWM STATUS_LED_BRIGHTNESS. Màu xem spec 9.3.
 class StatusLed {
 public:
     void begin();

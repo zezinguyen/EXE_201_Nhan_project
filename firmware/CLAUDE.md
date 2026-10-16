@@ -58,6 +58,7 @@ lib/core/src/             logic thuần C++, có unit test:
 src/main.cpp              chỉ khởi tạo + nối module
 src/app/CommandHandler    broadcast từ app -> kiểm tra -> phát IR -> ACK; học lệnh (từ app hoặc từ nút)
 src/app/Feedback          sự kiện -> file âm thanh (mp3)
+src/app/ProfileSetup      (TẠM) app sửa profile qua Realtime: giao thức điều hòa, lưu phím học (contracts.md 3.8)
 src/app/SerialBridge      nhận request JSON qua Serial để thử khi chưa có app
 src/app/Outbox            hàng đợi ghi Supabase qua REST: mã học từ nút (learned_codes), báo lỗi (error_reports)
 src/modules/              header của mọi module + phần triển khai dùng chung

@@ -173,7 +173,7 @@ Mạch → Server: gọi RPC `board_learn_event` với body `{ "event": "<tên e
 | ---------------- | ----------------------------------------------- | ----------------------------------- |
 | `learn_progress` | `{ "requestId", "status": "first_captured" }`   | Đã thu lần 1, mời bấm lại lần 2     |
 | `learn_progress` | `{ "requestId", "status": "mismatch" }`         | 2 lần khác nhau, mời bấm lại từ đầu |
-| `learn_result`   | `{ "requestId", "status": "ok", "ir": IrCode }` | Thành công (IrCode xem mục 6)       |
+| `learn_result`   | `{ "requestId", "status": "ok", "ir": IrCode, "detected", "acSupported" }` | Thành công (IrCode xem mục 6). `detected`: giao thức nhận ra, kể cả mã điều hòa (khi `ir` là raw), `"UNKNOWN"` nếu không biết; `acSupported`: `detected` dùng được làm `irac_protocol` |
 | `learn_result`   | `{ "requestId", "status": "E_LEARN_FAIL" }`     | Lệch quá 3 lần                      |
 | `learn_timeout`  | `{ "requestId", "status": "timeout" }`          | Hết 15s                             |
 
@@ -209,6 +209,37 @@ Mạch gọi RPC `board_status` khi vừa vào kênh, mỗi **5 phút**, và m�
 ### 3.7 Cập nhật profile 🚧
 
 Đề xuất: profile tính **theo từng mạch** (chỉ gồm thiết bị có `board_id` là mạch đó). Khi thiết bị của mạch thay đổi, server tăng `boards.profile_version` của mạch đó (đổi `board_id` thì tăng cả mạch cũ và mạch mới) và gửi broadcast `profile_updated { "profileVersion": 4 }` vào kênh của mạch. Mạch thấy khác phiên bản thì tải profile qua HTTPS rồi lưu lại. **Firmware chưa làm** phần này: hiện mạch chỉ đọc `profile.json` có sẵn trong bộ nhớ flash. Cần chốt endpoint tải profile (bảng/view hay Edge Function) và định dạng (mục 5).
+
+
+### 3.8 Sửa profile trên mạch từ app: giao thức điều hòa, phím học (TẠM, 🔁)
+
+Dùng khi server chưa quản lý profile (mục 3.7): app gửi thẳng vào kênh `home:<homeId>` (giống `command` hiện tại), mạch sửa `profile.json` trên LittleFS (`src/app/ProfileSetup`). Khi có Edge Function + `profile_updated` thì bỏ phần này, profile lưu ở server.
+
+App → Mạch:
+
+| Event             | Payload                                                         | Mạch làm                                                                    |
+| ----------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `profile_get`     | `{ "requestId" }`                                               | Trả `profile_info`                                                          |
+| `ac_try`          | `{ "requestId", "protocol", "power", "temp", "mode", "fan" }`  | Phát thử bằng giao thức đó, **không lưu**. Trả `setup_result`               |
+| `ac_set_protocol` | `{ "requestId", "deviceId", "protocol", "name"? }`              | Đặt `irac_protocol`; chưa có `deviceId` thì tạo điều hòa mới. Trả `setup_result` |
+| `ir_try`          | `{ "requestId", "ir": IrCode }`                                 | Phát thử một mã (VD mã Tivi theo hãng), **không lưu**. Trả `setup_result`   |
+| `profile_put_command` | `{ "requestId", "deviceId", "deviceName"?, "action", "ir": IrCode }` | Lưu/ghi đè phím `action` cho thiết bị bấm nút (chưa có thì tạo, `type: "custom"`). Từ chối điều hòa. Trả `setup_result` |
+
+Mạch → App:
+
+| Event          | Payload |
+| -------------- | ------- |
+| `profile_info` | `{ "requestId", "profileVersion", "devices": [{ "id", "type", "name", "acProtocol"?, "commands": ["POWER", ...] }], "acProtocols": ["COOLIX", ...] }`. `acProtocols`: giao thức gợi ý mà firmware hỗ trợ (`AC_PROTOCOL_CANDIDATES`) |
+| `setup_result` | `{ "requestId", "ok", "error"?, "profileVersion" }`. Lỗi: `E_BUSY` (đang học lệnh), `E_PROTOCOL` (IRac không hỗ trợ), `E_BAD_REQUEST` (sai deviceId/action/IrCode, hoặc sai loại thiết bị), `E_SAVE_FAILED` |
+
+**Tên phím Tivi** (`action`, danh sách ở `zalo-app/src/services/tvKeys.js`): `POWER`, `MUTE`, `VOL_UP`, `VOL_DOWN`, `CH_UP`, `CH_DOWN`, `INPUT`, `HOME`, `MENU`, `LIST`, `BACK`, `UP`, `DOWN`, `LEFT`, `RIGHT`, `OK`, `NUM_0`…`NUM_9`, `APP_YOUTUBE`.
+
+**Tivi**: chỉ có một phím nguồn `POWER` (bật/tắt chung một mã); giọng nói "bật/tắt tivi" (`TV_POWER_ON`/`TV_POWER_OFF`) app gửi thành `POWER`. Lấy mã theo một trong hai cách:
+- **Chọn hãng**: app có sẵn mã theo hãng (`zalo-app/src/services/tvPresets.js`: LG, Samsung, Sony, Panasonic, TCL — TCL học từ remote thật, giao thức NIKAI). `ir_try` mã `POWER` để thử, đúng thì `profile_put_command` lần lượt từng phím.
+- **Tự nhận từ phím Nguồn**: `learn_start`, người dùng bấm Nguồn trên remote thật. Mã trùng `POWER` của một hãng có sẵn (so theo giá trị số) thì lưu cả bộ mã hãng đó; không trùng (hãng khác, hoặc giao thức IRremoteESP8266 không giải mã được như TCL họ RCA → `ir` dạng raw) thì chỉ lưu phím `POWER`.
+- **Học phím**: `learn_start`, người dùng bấm phím trên remote thật 2 lần, rồi `profile_put_command` với `ir` từ `learn_result`.
+
+**Tự nhận giao thức**: app gửi `learn_start`, người dùng bấm remote điều hòa thật 2 lần; `learn_result` có `acSupported: true` thì app gửi `ac_set_protocol` với `detected`.
 
 ---
 

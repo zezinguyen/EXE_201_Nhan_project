@@ -37,6 +37,8 @@ public:
 
     // Chạy một hành động trên thiết bị. Trả về nullptr nếu thành công, ngược lại là mã lỗi.
     const char* runAction(const char* deviceId, const char* action, JsonObjectConst params);
+    // Phát một IrCode ({protocol, code, bits} hoặc {raw, freq}). nullptr = thành công.
+    const char* sendIrCode(JsonObjectConst command);
 
 private:
     void handleCommand(JsonObjectConst command);

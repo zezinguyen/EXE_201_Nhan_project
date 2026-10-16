@@ -138,7 +138,7 @@ void RealtimeClient::sendJoin() {
     JsonObject config = payload["config"].to<JsonObject>();
     config["broadcast"]["self"] = false;
     config["presence"]["key"] = presenceKey_;
-    config["private"] = true;
+    config["private"] = false;  // TẠM: Supabase chưa có RLS cho kênh private (docs/todo.md mục 2)
     payload["access_token"] = accessToken_;
     send(topic_.c_str(), "phx_join", payload, &joinRef_);
 }

@@ -4,7 +4,7 @@ Monorepo SmartHome Voice Assistant (Zalo Mini App + Supabase + mạch ESP32 phá
 
 | Thư mục | Nội dung |
 |---|---|
-| `docs/` | Tài liệu chung: `specs.md` (đặc tả), `contracts.md` (giao tiếp app ↔ server ↔ mạch), `production-notes.md` |
+| `docs/` | Tài liệu chung: `specs.md` (đặc tả), `contracts.md` (giao tiếp app ↔ server ↔ mạch), `production-notes.md`, `todo.md` (việc còn dở, phần làm tạm) |
 | `firmware/` | Firmware PlatformIO cho mạch — quy tắc riêng ở [firmware/CLAUDE.md](firmware/CLAUDE.md), mọi lệnh `pio` chạy trong thư mục này |
 | `zalo-app/` | Zalo Mini App (React + Vite) |
 | `database/` | Schema Supabase (SQL) |

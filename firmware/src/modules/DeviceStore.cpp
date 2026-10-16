@@ -1,5 +1,9 @@
 #include "DeviceStore.h"
 
+#include <Arduino.h>
+
+#include "config.h"
+
 uint32_t DeviceStore::profileVersion() const { return doc_["profileVersion"] | 0u; }
 
 JsonObjectConst DeviceStore::findDevice(const char* deviceId) const {
@@ -27,4 +31,15 @@ bool DeviceStore::loadFromJson(const char* json, size_t length) {
     }
     doc_ = std::move(incoming);
     return true;
+}
+
+bool DeviceStore::save(const JsonDocument& doc) {
+    const size_t length = measureJson(doc);
+    if (length > PROFILE_MAX_BYTES) {
+        return false;
+    }
+    String json;
+    json.reserve(length + 1);
+    serializeJson(doc, json);
+    return save(json.c_str(), json.length());
 }

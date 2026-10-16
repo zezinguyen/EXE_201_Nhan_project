@@ -10,6 +10,7 @@
 #include "app/CommandHandler.h"
 #include "app/Feedback.h"
 #include "app/Outbox.h"
+#include "app/ProfileSetup.h"
 #include "app/SerialBridge.h"
 #include "config.h"
 #include "modules/AudioPlayer.h"
@@ -53,6 +54,7 @@ RealtimeClient realtime;
 SupabaseRest rest;
 Outbox outbox(rest, errorReporter);
 CommandHandler commandHandler(deviceStore, irSender, irLearner, errorReporter, timeSync, realtime, outbox);
+ProfileSetup profileSetup(deviceStore, irSender, commandHandler, realtime);
 Feedback feedback(audio);
 SerialBridge serialBridge;
 
@@ -72,7 +74,11 @@ void showMessage(const char* text, uint32_t nowMs) {
     display.wake(nowMs);
 }
 
-void onBroadcast(const char* event, JsonObjectConst payload) { commandHandler.onBroadcast(event, payload); }
+void onBroadcast(const char* event, JsonObjectConst payload) {
+    if (!profileSetup.onBroadcast(event, payload)) {
+        commandHandler.onBroadcast(event, payload);
+    }
+}
 
 void onCommandResult(const char* /*commandId*/, const char* error) { feedback.onCommandResult(error); }
 

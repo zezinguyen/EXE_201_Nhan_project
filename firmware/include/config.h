@@ -52,6 +52,7 @@ constexpr uint8_t AUDIO_UART_NUM = 2;      // UART phần cứng nối DFPlayer
 // Mức tích cực của phần cứng
 constexpr bool BUTTON_ACTIVE_LOW = true;       // Nút nối GND, dùng pull-up trong
 constexpr bool STATUS_LED_ACTIVE_HIGH = true;   // LED RGB cathode chung (chân chung về GND)
+constexpr uint8_t STATUS_LED_BRIGHTNESS = 40;   // Độ sáng PWM 0..255 (255 = sáng hết cỡ, chói)
 constexpr bool IR_RX_POWER_ACTIVE_HIGH = true;
 
 // -----------------------------------------------------------------------------
@@ -124,6 +125,12 @@ constexpr uint8_t IR_MATCH_TOLERANCE_PERCENT = 25;
 constexpr uint16_t IR_MATCH_MIN_TOLERANCE_US = 150;
 constexpr int16_t AC_TEMP_MIN_DEFAULT = 16;        // Khi profile không có limits
 constexpr int16_t AC_TEMP_MAX_DEFAULT = 30;
+// Giao thức điều hòa gợi ý khi chọn/dò trên app hoặc web bản thử. Máy OEM (VD Funiki) không có tên riêng
+// trong IRremoteESP8266 -> thử lần lượt các giao thức hay gặp, hoặc dò bằng remote thật.
+constexpr const char* AC_PROTOCOL_CANDIDATES[] = {
+    "COOLIX", "MIDEA", "GREE", "KELVINATOR", "TCL112AC", "HAIER_AC_YRW02", "HAIER_AC", "ELECTRA_AC",
+    "AIRWELL", "KELON", "MIRAGE", "TECO", "VESTEL_AC", "TECHNIBEL_AC", "CARRIER_AC64", "DAIKIN",
+};
 constexpr uint8_t IR_LEARN_MAX_FAILS = 3;          // Quá số lần -> E_LEARN_FAIL
 constexpr uint8_t LEARNED_CODE_QUEUE_SIZE = 4;     // Mã học từ nút chờ gửi khi mất mạng
 
@@ -164,6 +171,7 @@ constexpr const char* PROFILE_PATH = "/profile.json";
 constexpr const char* PROFILE_BACKUP_PATH = "/profile.bak.json";
 constexpr const char* PROFILE_TEMP_PATH = "/profile.tmp.json";
 constexpr size_t PROFILE_MAX_BYTES = 32UL * 1024;  // Giữ toàn bộ trong RAM (contracts.md mục 5)
+constexpr size_t PROFILE_NAME_MAX_BYTES = 32;      // deviceId / tên thiết bị do app gửi (UTF-8)
 
 // -----------------------------------------------------------------------------
 // Thời gian / ghép đôi
@@ -191,12 +199,6 @@ constexpr const char* LOCAL_MDNS_HOSTNAME = "smarthome";  // -> http://smarthome
 constexpr const char* LOCAL_AC_DEVICE_ID = "ac_funiki";
 constexpr const char* LOCAL_AC_DEVICE_NAME = "Điều hòa Funiki R32";
 constexpr const char* LOCAL_AC_DEFAULT_PROTOCOL = "COOLIX";  // Đã dò bằng remote Funiki R32 thật (15/10/2026)
-// Funiki không có trong IRremoteESP8266 (máy OEM). Thử lần lượt các giao thức hay gặp ở máy OEM,
-// hoặc dò bằng remote thật trên trang web.
-constexpr const char* LOCAL_AC_CANDIDATES[] = {
-    "COOLIX", "MIDEA", "GREE", "KELVINATOR", "TCL112AC", "HAIER_AC_YRW02", "HAIER_AC", "ELECTRA_AC",
-    "AIRWELL", "KELON", "MIRAGE", "TECO", "VESTEL_AC", "TECHNIBEL_AC", "CARRIER_AC64", "DAIKIN",
-};
 constexpr const char* LOCAL_LEARN_DEVICE_ID = "remote_hoc";  // Phím học bằng mắt thu lưu vào đây
 constexpr const char* LOCAL_LEARN_DEVICE_NAME = "Phím đã học";
 constexpr size_t LOCAL_NAME_MAX_BYTES = 32;                  // Tên phím / thiết bị (UTF-8)

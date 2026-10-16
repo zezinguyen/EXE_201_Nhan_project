@@ -158,6 +158,9 @@ void CommandHandler::finishLearning() {
     payload["requestId"] = learnRequestId_;
     payload["status"] = "ok";
     irCaptureToJson(capture, payload["ir"].to<JsonObject>());
+    // Giao thức nhận ra (kể cả điều hòa, khi ir là raw) -> app dùng để tự chọn giao thức điều hòa
+    payload["detected"] = capture.detected;
+    payload["acSupported"] = IrSender::isAcProtocolSupported(capture.detected);
     realtime_.broadcast("learn_result", payload);
 }
 
@@ -182,7 +185,10 @@ const char* CommandHandler::sendDeviceCommand(JsonObjectConst device, const char
     if (command.isNull()) {
         return nameOf(ErrorCode::CmdNotFound);
     }
+    return sendIrCode(command);
+}
 
+const char* CommandHandler::sendIrCode(JsonObjectConst command) {
     JsonArrayConst raw = command["raw"];
     if (!raw.isNull()) {
         static uint16_t buffer[IR_RAW_MAX_LENGTH];

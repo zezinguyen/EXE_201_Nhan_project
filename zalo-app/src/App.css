@@ -840,7 +840,7 @@ body {
 /* TV Primary Actions Row (Power On, Power Off, YouTube) */
 .tv-primary-actions-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.15fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -1538,4 +1538,133 @@ body {
 .member-role-badge.member {
   background: #E0E7FF;
   color: #3730A3;
+}
+
+/* Cài giao thức điều hòa (AcSetupModal) */
+.ac-protocol-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primary-dark);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ac-setup-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ac-setup-hint {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-light);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ac-setup-error {
+  margin: 0;
+  color: #B91C1C;
+  font-size: 14px;
+}
+
+.ac-setup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ac-setup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.ac-setup-row.current {
+  border-color: var(--primary-border);
+  background: var(--primary-light);
+}
+
+.ac-setup-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.ac-setup-primary-btn,
+.ac-setup-secondary-btn {
+  height: 34px;
+  min-width: 64px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ac-setup-primary-btn {
+  border: none;
+  background: var(--primary-emerald);
+  color: #FFFFFF;
+}
+
+.ac-setup-secondary-btn {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  color: var(--text-main);
+}
+
+.ac-setup-primary-btn:disabled,
+.ac-setup-secondary-btn:disabled,
+.form-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ac-setup-status {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ir-json-box {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.ir-json-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ac-setup-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
 }

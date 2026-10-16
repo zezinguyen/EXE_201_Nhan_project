@@ -38,6 +38,7 @@ export function generateRequestId() {
 
 // Bộ nhớ kênh Realtime theo homeId để dùng chung
 const homeChannels = new Map();
+const TV_POWER_ALIASES = new Set(['TV_POWER_ON', 'TV_POWER_OFF']);
 
 export function resetHomeChannels() {
   homeChannels.clear();
@@ -101,8 +102,9 @@ export async function sendIotCommand(command, options = {}) {
   }
 
   const homeId = options.homeId || '00000000-0000-0000-0000-000000000001';
-  let deviceId = command.deviceId || (command.action?.startsWith('AC_') ? 'ac_living' : 'tv_living');
-  const action = command.action;
+  let deviceId = command.deviceId || (command.action?.startsWith('AC_') ? 'ac_funiki' : 'tv_living');
+  // Remote Tivi chỉ có một phím nguồn bật/tắt: mạch lưu phím đó là POWER (contracts.md 3.8)
+  const action = TV_POWER_ALIASES.has(command.action) ? 'POWER' : command.action;
   const clientRequestId = options.clientRequestId || generateRequestId();
 
   // Chuẩn bị params cho điều hòa hoặc thiết bị khác
@@ -111,8 +113,8 @@ export async function sendIotCommand(command, options = {}) {
   if (command.mode !== undefined) params.mode = command.mode;
   if (command.fan !== undefined) params.fan = command.fan;
   if (command.power !== undefined) params.power = command.power;
-  if (action === 'POWER_OFF' || action === 'TV_POWER_OFF') params.power = false;
-  if (action === 'POWER_ON' || action === 'TV_POWER_ON') params.power = true;
+  if (command.action === 'POWER_OFF' || command.action === 'TV_POWER_OFF') params.power = false;
+  if (command.action === 'POWER_ON' || command.action === 'TV_POWER_ON') params.power = true;
 
   console.log(`[IOT] Gửi lệnh: Device=${deviceId}, Action=${action}, ReqId=${clientRequestId}`);
 

@@ -37,7 +37,7 @@ const uint8_t kPins[] = {PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE};
 
 void StatusLed::begin() {
     for (uint8_t pin : kPins) {
-        pinMode(pin, OUTPUT);
+        pinMode(pin, OUTPUT);  // analogWrite tự gắn kênh PWM (LEDC trên ESP32) ở lần ghi đầu
     }
     write(false);
 }
@@ -71,7 +71,8 @@ void StatusLed::update(uint32_t nowMs) {
 void StatusLed::write(bool on) {
     const uint8_t color = on ? kPatterns[static_cast<uint8_t>(pattern_)].color : static_cast<uint8_t>(kBlack);
     for (uint8_t i = 0; i < 3; i++) {
-        const bool lit = (color >> i) & 1;
-        digitalWrite(kPins[i], lit == STATUS_LED_ACTIVE_HIGH ? HIGH : LOW);
+        // PWM để giảm độ sáng; LED anode chung (ACTIVE_HIGH = false) thì đảo mức
+        const uint8_t level = ((color >> i) & 1) ? STATUS_LED_BRIGHTNESS : 0;
+        analogWrite(kPins[i], STATUS_LED_ACTIVE_HIGH ? level : 255 - level);
     }
 }

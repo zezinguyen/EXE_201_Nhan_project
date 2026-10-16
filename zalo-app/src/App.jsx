@@ -27,6 +27,9 @@ import {
   removeHomeMember
 } from './services/supabaseService';
 import { SUPABASE_SCHEMA_SQL } from './services/supabaseSchema';
+import AcSetupModal from './components/AcSetupModal';
+import TvSetupModal from './components/TvSetupModal';
+import { fetchBoardProfile } from './services/profileSetupService';
 
 
 function App() {
@@ -37,6 +40,9 @@ function App() {
   const [actionToast, setActionToast] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPairingModal, setShowPairingModal] = useState(false);
+  const [showAcSetup, setShowAcSetup] = useState(false);
+  const [showTvSetup, setShowTvSetup] = useState(false);
+  const [acProtocol, setAcProtocol] = useState(null); // Giao thức IRac đang lưu trên mạch
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showFamilyModal, setShowFamilyModal] = useState(false);
 
@@ -91,7 +97,7 @@ function App() {
   // Danh sách thiết bị trong nhà (Quạt, Điều hòa, TV)
   const [devices, setDevices] = useState([
     { id: 'tv_living', boardId: 'board_living_01', name: 'Tivi LG Phòng Khách', room: 'Phòng khách', type: 'tv', active: false, statusText: 'Đã tắt' },
-    { id: 'ac_living', boardId: 'board_living_01', name: 'Điều hòa Panasonic', room: 'Phòng khách', type: 'ac', active: false, temp: 24, mode: 'cool', fan: 'auto', statusText: 'Đã tắt' }
+    { id: 'ac_funiki', boardId: 'board_living_01', name: 'Điều hòa Funiki R32', room: 'Phòng khách', type: 'ac', active: false, temp: 24, mode: 'cool', fan: 'auto', statusText: 'Đã tắt' }
   ]);
 
   // Remote ảo tự tạo & Mã học từ nút bấm (Specs 7.1)
@@ -177,7 +183,8 @@ function App() {
         setIsSupabaseOnline(true);
         if (data.boards && data.boards.length > 0) setBoards(data.boards);
         if (data.devices && data.devices.length > 0) {
-          setDevices(data.devices);
+          // Gộp, không thay thế: thiết bị chỉ có trên mạch (VD ac_funiki) chưa có trong home_devices
+          setDevices(prev => [...data.devices, ...prev.filter(d => !data.devices.some(x => x.id === d.id))]);
           const ac = data.devices.find(d => d.type === 'ac');
           if (ac) {
             setAcTemp(ac.temp || 24);
@@ -214,7 +221,7 @@ function App() {
           }
           return d;
         }));
-        if (st.device_id === 'ac_living') {
+        if (st.device_id === 'ac_funiki') {
           if (st.temp) setAcTemp(st.temp);
           if (st.mode) setAcMode(st.mode);
         }
@@ -257,6 +264,17 @@ function App() {
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
+  }, []);
+
+  // Đọc giao thức điều hòa đang lưu trên mạch (mạch offline thì giữ "Chọn giao thức")
+  useEffect(() => {
+    let alive = true;
+    fetchBoardProfile().then((res) => {
+      if (!alive || !res.ok) return;
+      const ac = res.devices.find(d => d.id === 'ac_funiki');
+      if (ac?.acProtocol) setAcProtocol(ac.acProtocol);
+    });
+    return () => { alive = false; };
   }, []);
 
   // Xử lý tạo mã mời gia đình mới (Specs 4.4)
@@ -349,10 +367,13 @@ function App() {
     const res = await sendIotCommand(cmd);
     if (res.success) {
       showNotification(res.message);
-      if (action === 'TV_POWER_ON') {
-        setDevices(prev => prev.map(d => d.id === 'tv_living' ? { ...d, active: true, statusText: 'Đang bật' } : d));
-      } else if (action === 'TV_POWER_OFF') {
-        setDevices(prev => prev.map(d => d.id === 'tv_living' ? { ...d, active: false, statusText: 'Đã tắt' } : d));
+      // POWER là phím bật/tắt chung: app chỉ đoán trạng thái (IR một chiều, không biết Tivi đang bật hay tắt)
+      if (action === 'POWER' || action === 'TV_POWER_ON' || action === 'TV_POWER_OFF') {
+        setDevices(prev => prev.map(d => {
+          if (d.id !== 'tv_living') return d;
+          const active = action === 'POWER' ? !d.active : action === 'TV_POWER_ON';
+          return { ...d, active, statusText: active ? 'Đang bật' : 'Đã tắt' };
+        }));
       }
     } else {
       showNotification(`Lỗi: ${res.message}`);
@@ -373,7 +394,7 @@ function App() {
     const title = targetPower ? `Bật điều hòa ${targetTemp}°C` : 'Tắt điều hòa';
 
     const cmd = {
-      deviceId: 'ac_living',
+      deviceId: 'ac_funiki',
       action,
       title,
       power: targetPower,
@@ -390,7 +411,7 @@ function App() {
     const res = await sendIotCommand(cmd);
     if (res.success) {
       showNotification(res.message);
-      setDevices(prev => prev.map(d => d.id === 'ac_living' ? {
+      setDevices(prev => prev.map(d => d.id === 'ac_funiki' ? {
         ...d,
         active: targetPower,
         temp: targetTemp,
@@ -477,7 +498,7 @@ function App() {
       setParsedCommand(parsed);
       speakFeedback(parsed.title);
 
-      if (parsed.deviceId === 'ac_living' || parsed.action === 'POWER_OFF' || parsed.action === 'SET') {
+      if (parsed.deviceId === 'ac_funiki' || parsed.action === 'POWER_OFF' || parsed.action === 'SET') {
         await handleAcControl({
           power: parsed.power,
           temp: parsed.temp,
@@ -840,12 +861,12 @@ function App() {
               <p className="mic-subtext">Nói tự nhiên hoặc chọn lệnh nhanh bên dưới:</p>
               
               <div className="mic-quick-suggestions">
-                <button type="button" className="suggestion-pill-chip" onClick={() => handleTvCommand('TV_POWER_ON', 'Bật Tivi')}>
+                <button type="button" className="suggestion-pill-chip" onClick={() => handleTvCommand('POWER', 'Nguồn Tivi')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="20" height="15" x="2" y="3" rx="2" />
                     <polyline points="17 2 12 7 7 2" />
                   </svg>
-                  <span>Bật TV</span>
+                  <span>Nguồn TV</span>
                 </button>
                 <button type="button" className="suggestion-pill-chip" onClick={() => handleTvCommand('APP_YOUTUBE', 'Mở YouTube')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -925,8 +946,13 @@ function App() {
                 </svg>
               </div>
               <div>
-                <h2 className="device-card-title">Tivi Phòng Khách</h2>
-                <span className="device-card-subtitle">Smart TV • Hồng ngoại NEC</span>
+                <h2 className="device-card-title">{devices.find(d => d.id === 'tv_living')?.name || 'Tivi'}</h2>
+                <span className="device-card-subtitle">
+                  Hồng ngoại •{' '}
+                  <button type="button" className="ac-protocol-link" onClick={() => setShowTvSetup(true)}>
+                    Chọn hãng / học phím
+                  </button>
+                </span>
               </div>
             </div>
             <div className="device-status-badge">
@@ -937,28 +963,17 @@ function App() {
 
           {/* Hàng 1: Nguồn & YouTube */}
           <div className="tv-primary-actions-row">
+            {/* Remote Tivi chỉ có một phím nguồn (bật/tắt chung một mã) */}
             <button
               type="button"
               className="tv-action-btn tv-power-on"
-              onClick={() => handleTvCommand('TV_POWER_ON', 'Bật Tivi')}
+              onClick={() => handleTvCommand('POWER', 'Nguồn Tivi')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
                 <line x1="12" y1="2" x2="12" y2="12" />
               </svg>
-              <span className="btn-label">Bật TV</span>
-            </button>
-
-            <button
-              type="button"
-              className="tv-action-btn tv-power-off"
-              onClick={() => handleTvCommand('TV_POWER_OFF', 'Tắt Tivi')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                <line x1="12" y1="2" x2="12" y2="12" />
-              </svg>
-              <span className="btn-label">Tắt TV</span>
+              <span className="btn-label">Nguồn</span>
             </button>
 
             <button
@@ -1034,7 +1049,7 @@ function App() {
         </div>
       </section>
 
-      {/* 6. ĐIỀU KHIỂN ĐIỀU HÒA PANASONIC (THERMOSTAT CARD SANG TRỌNG) */}
+      {/* 6. ĐIỀU KHIỂN ĐIỀU HÒA (THERMOSTAT CARD) */}
       <section className="devices-section">
         <div className="device-card-container ac-thermostat-card">
           <div className="ac-panel-header">
@@ -1048,20 +1063,25 @@ function App() {
                 </svg>
               </div>
               <div>
-                <h3 className="device-card-title">Điều hòa Panasonic</h3>
-                <span className="device-card-subtitle">Inverter • Giao thức IRac</span>
+                <h3 className="device-card-title">{devices.find(d => d.id === 'ac_funiki')?.name || 'Điều hòa'}</h3>
+                <span className="device-card-subtitle">
+                  Giao thức:{' '}
+                  <button type="button" className="ac-protocol-link" onClick={() => setShowAcSetup(true)}>
+                    {acProtocol || 'Chọn giao thức'}
+                  </button>
+                </span>
               </div>
             </div>
             <button
               type="button"
-              className={`ac-power-toggle-btn ${devices.find(d => d.id === 'ac_living')?.active ? 'active' : ''}`}
+              className={`ac-power-toggle-btn ${devices.find(d => d.id === 'ac_funiki')?.active ? 'active' : ''}`}
               onClick={() => {
-                const currentActive = devices.find(d => d.id === 'ac_living')?.active;
+                const currentActive = devices.find(d => d.id === 'ac_funiki')?.active;
                 handleAcControl({ power: !currentActive });
               }}
             >
               <span className="power-indicator-dot" />
-              <span>{devices.find(d => d.id === 'ac_living')?.active ? 'Đang Bật' : 'Đã Tắt'}</span>
+              <span>{devices.find(d => d.id === 'ac_funiki')?.active ? 'Đang Bật' : 'Đã Tắt'}</span>
             </button>
           </div>
 
@@ -1177,6 +1197,26 @@ function App() {
             </div>
           ))}
         </section>
+      )}
+
+      {/* MODAL: GIAO THỨC ĐIỀU HÒA (Contracts 3.8) */}
+      {showAcSetup && (
+        <AcSetupModal
+          acDevice={{ id: 'ac_funiki', name: devices.find(d => d.id === 'ac_funiki')?.name || 'Điều hòa' }}
+          acState={{ temp: acTemp, mode: acMode }}
+          onClose={() => setShowAcSetup(false)}
+          onSaved={setAcProtocol}
+          onNotify={showNotification}
+        />
+      )}
+
+      {/* MODAL: CÀI ĐẶT TIVI — CHỌN HÃNG / HỌC PHÍM (Contracts 3.8) */}
+      {showTvSetup && (
+        <TvSetupModal
+          tvDevice={{ id: 'tv_living', name: devices.find(d => d.id === 'tv_living')?.name || 'Tivi' }}
+          onClose={() => setShowTvSetup(false)}
+          onNotify={showNotification}
+        />
       )}
 
       {/* MODAL: GHÉP ĐÔI MẠCH ESP32 (Specs 10.2, Contracts 7) */}

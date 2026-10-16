@@ -187,7 +187,7 @@ export function parseVoiceCommand(text, customRemotes = []) {
       return {
         action: 'POWER_OFF',
         title: 'Tắt điều hòa',
-        deviceId: 'ac_living',
+        deviceId: 'ac_funiki',
         device: 'Điều hòa (Hồng ngoại)',
         power: false,
         icon: '❄️',
@@ -229,7 +229,7 @@ export function parseVoiceCommand(text, customRemotes = []) {
     return {
       action: 'SET',
       title: `Bật điều hòa ${targetTemp}°C (${acMode})`,
-      deviceId: 'ac_living',
+      deviceId: 'ac_funiki',
       device: 'Điều hòa (Hồng ngoại)',
       power: true,
       temp: targetTemp,

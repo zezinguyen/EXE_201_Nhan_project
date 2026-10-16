@@ -161,7 +161,7 @@ void LocalWebServer::handleProfile() {
 void LocalWebServer::handleProtocols() {
     JsonDocument doc;
     JsonArray candidates = doc["candidates"].to<JsonArray>();
-    for (const char* protocol : LOCAL_AC_CANDIDATES) {
+    for (const char* protocol : AC_PROTOCOL_CANDIDATES) {
         if (IrSender::isAcProtocolSupported(protocol)) {
             candidates.add(protocol);
         }
@@ -321,11 +321,9 @@ void LocalWebServer::sendResult(const char* error) {
 }
 
 bool LocalWebServer::saveProfile(const JsonDocument& doc) {
-    String json;
-    serializeJson(doc, json);
-    if (json.length() > PROFILE_MAX_BYTES) {
-        log_w("Profile qua lon: %u byte", json.length());
+    if (!store_.save(doc)) {
+        log_w("Khong ghi duoc profile (%u byte)", measureJson(doc));
         return false;
     }
-    return store_.save(json.c_str(), json.length());
+    return true;
 }
