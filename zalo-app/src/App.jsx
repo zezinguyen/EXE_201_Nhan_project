@@ -145,7 +145,10 @@ function App() {
   const [iotTvBrand, setIotTvBrand] = useState(() => getIotConfig().tvBrand);
   const [iotAcBrand, setIotAcBrand] = useState(() => getIotConfig().acBrand || 'Panasonic');
 
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || '';
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(() => {
+    return localStorage.getItem('gemini_api_key') || import.meta.env.VITE_GEMINI_API_KEY || 'sk-39de97d6695c5a0c3919ca96e19f3f86574ac5d3c72c41e0b3b2136d471b048a';
+  });
+  const geminiApiKey = geminiApiKeyInput || 'sk-39de97d6695c5a0c3919ca96e19f3f86574ac5d3c72c41e0b3b2136d471b048a';
 
   // Quản lý thu âm & Sóng âm trực tiếp
   const audioCaptureRef = useRef(null);
@@ -622,8 +625,9 @@ function App() {
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'vi-VN';
-        recognition.continuous = true;
+        recognition.continuous = false; // Ngắt câu tự động để phản hồi ngay lập tức
         recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
 
         recognition.onresult = (event) => {
           let interim = '';
@@ -640,13 +644,16 @@ function App() {
             setTranscript(final);
             setInterimText('');
             currentTranscriptRef.current = final;
+            // Nhận diện xong câu lệnh -> Dừng thu âm và thực thi ngay lập tức!
+            stopListening();
+            return;
           }
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           silenceTimerRef.current = setTimeout(() => {
             if (isListeningRef.current && (currentTranscriptRef.current || final)) {
               stopListening();
             }
-          }, 1400);
+          }, 1200);
         };
 
         recognition.onerror = (e) => {
@@ -654,6 +661,21 @@ function App() {
           voiceIssueRef.current.speechError = e.error;
           if (e.error === 'not-allowed') {
             showNotification('Quyền Micro bị từ chối. Hãy cho phép Micro trên trình duyệt!');
+            stopListening();
+          } else if (e.error === 'network' || e.error === 'audio-capture') {
+            // Khi Web Speech API lỗi mạng Google hoặc kẹt capture, tự động chuyển ngay sang Gemini AI sau 2s
+            if (!currentTranscriptRef.current) {
+              setTimeout(() => {
+                if (isListeningRef.current) stopListening();
+              }, 2000);
+            }
+          }
+        };
+
+        recognition.onend = () => {
+          // Trình duyệt tự dừng khi dứt câu
+          if (isListeningRef.current) {
+            stopListening();
           }
         };
 
@@ -668,7 +690,7 @@ function App() {
       if (isListeningRef.current && sessionIdRef.current === currentSession) {
         stopListening();
       }
-    }, 7000);
+    }, 6000);
   };
 
   const stopListening = async () => {
@@ -1440,6 +1462,30 @@ function App() {
                     {supabasePingResult}
                   </div>
                 )}
+              </div>
+
+              {/* Cài đặt Trợ lý Giọng nói AI (Gemini) */}
+              <div className="form-group-item supabase-config-card" style={{ marginTop: '12px' }}>
+                <div className="form-item-header-row">
+                  <label className="form-item-label">Trợ lý Giọng nói AI (Gemini)</label>
+                  <span className="backend-status-tag online">🟢 Sẵn sàng</span>
+                </div>
+                <div className="form-vertical-inputs">
+                  <div className="input-with-label">
+                    <span className="input-micro-label">API Key AI (vilao.ai / Google AI Studio)</span>
+                    <input
+                      type="password"
+                      className="form-text-input"
+                      value={geminiApiKeyInput}
+                      onChange={(e) => {
+                        const val = e.target.value.trim();
+                        setGeminiApiKeyInput(val);
+                        localStorage.setItem('gemini_api_key', val);
+                      }}
+                      placeholder="sk-..."
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Hướng dẫn SQL Script */}

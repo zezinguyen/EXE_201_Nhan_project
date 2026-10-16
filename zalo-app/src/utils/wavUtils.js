@@ -101,8 +101,8 @@ export async function convertBlobToWav(blob, targetSampleRate = 16000) {
 
     wavBlob.peak = peak;
     wavBlob.rms = rms;
-    // Nhận diện im lặng: Khi người dùng không nói gì (chỉ có tiếng ồn nền/rè mic rất nhỏ)
-    wavBlob.isSilence = peak < 0.015 && rms < 0.0035;
+    // Nhận diện im lặng: Chỉ bỏ qua khi hoàn toàn không có âm thanh (peak cực thấp)
+    wavBlob.isSilence = peak < 0.004 && rms < 0.001;
     return wavBlob;
   } finally {
     audioCtx.close().catch(() => {});
