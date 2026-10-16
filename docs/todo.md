@@ -15,6 +15,30 @@ Mạch **đã lưu mã** đủ 26 phím Tivi TCL (học từ remote thật, ho�
 
 Việc cần làm: remote ảo đầy đủ trên thẻ Tivi (bàn phím số, mũi tên + OK, Menu/Home/Back/List/Input, chuyển kênh), dùng danh sách ở `zalo-app/src/services/tvKeys.js`; thêm lệnh giọng nói "chuyển kênh 5", "kênh tiếp"... trong `voiceCommandParser.js`.
 
+## 1b. Danh sách lệnh chưa thống nhất trong app
+
+Tên lệnh (`action`) chỉ do **zalo-app** quản lý; firmware không biết trước tên lệnh nào — nhận `action` thì tra đúng tên đó trong profile (riêng điều hòa xử lý `POWER_OFF`). Thêm/đổi lệnh **không cần nạp lại firmware**, chỉ cần mạch có mã cho tên đó.
+
+Hiện app có 3 danh sách lệch nhau:
+
+| Danh sách | Lệch |
+| --- | --- |
+| `zalo-app/src/services/tvKeys.js` | 27 phím đã học/lưu trên mạch — **danh sách đúng** |
+| Prompt AI trong `geminiService.js` | Có `APP_NETFLIX`, `CH_VTV1`, `CH_VTV3` (mạch không có → `E_CMD_NOT_FOUND`); thiếu phím số, mũi tên, `CH_UP`/`CH_DOWN`...; còn ghi mã IR LG không dùng tới |
+| `utils/voiceCommandParser.js` (nhận lệnh không cần AI) | Như trên |
+
+Việc cần làm: sinh prompt AI và từ khoá của `voiceCommandParser` từ một nguồn (`tvKeys.js` + thiết bị trong profile của mạch), bỏ mã IR khỏi prompt; lệnh ghép như "chuyển kênh 15" → chuỗi `NUM_1`, `NUM_5`.
+
+## 1c. Ý tưởng khi làm sản phẩm: lệnh và từ khoá do người dùng tự định nghĩa
+
+Người dùng tự tạo **lệnh tuỳ chỉnh** (một phím, hoặc chuỗi nhiều phím / nhiều thiết bị — VD "chế độ xem phim": bật Tivi → Input HDMI → tắt điều hòa xuống 26°C) và gán **từ khoá/câu nói** cho lệnh đó (VD "xem phim", "tới giờ coi bóng đá"). Khi nói, AI nhận danh sách lệnh + từ khoá của nhà đó trong prompt và chọn lệnh khớp nhất, thay vì danh sách lệnh cố định trong code.
+
+Gợi ý thiết kế:
+- Bảng `custom_commands` (theo `home_id`): tên, từ khoá (`voice_aliases`, đã có ý tưởng ở contracts.md mục 5), danh sách bước `{deviceId, action, params, delayMs}`.
+- Prompt AI sinh động từ: lệnh mặc định của các thiết bị trong nhà + lệnh tuỳ chỉnh + từ khoá. Nhà nhiều lệnh thì lọc trước theo từ khoá cho prompt ngắn (đỡ token).
+- AI chỉ trả về `id` lệnh (+ tham số như số kênh, nhiệt độ), app/server chạy các bước — AI không tự đặt ra `action`.
+- Chuỗi nhiều bước chạy ở server (Edge Function) để không phụ thuộc app còn mở; mạch vẫn chỉ nhận từng `command`.
+
 ## 2. Phần làm tạm (phải thay trước khi phát hành)
 
 | Chỗ | Đang làm | Cần đổi thành |

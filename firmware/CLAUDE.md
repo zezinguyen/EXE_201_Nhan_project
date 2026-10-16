@@ -54,6 +54,7 @@ lib/core/src/             logic thuần C++, có unit test:
   CommandGuard            hạn dùng, chống trùng commandId, seq khi chưa có NTP, giới hạn tốc độ
   RateLimiter, RingBuffer, IrCompare, BatteryGauge, ButtonDetector, ErrorThrottle, ErrorCodes,
   Password                mật khẩu ngẫu nhiên cho WiFi cài đặt (hiện trên OLED)
+  WifiQr                  nội dung mã QR WiFi (WIFI:T:WPA;S:..;P:..;;) để điện thoại quét vào WiFi cài đặt
   ProfileEdit             sửa profile trên mạch (bản thử): thêm/xoá phím học, đổi giao thức điều hòa
 src/main.cpp              chỉ khởi tạo + nối module
 src/app/CommandHandler    broadcast từ app -> kiểm tra -> phát IR -> ACK; học lệnh (từ app hoặc từ nút)
@@ -64,14 +65,14 @@ src/app/Outbox            hàng đợi ghi Supabase qua REST: mã học từ nú
 src/modules/              header của mọi module + phần triển khai dùng chung
 src/platform/esp32/       triển khai riêng ESP32: Board, PowerManager, WifiManager, SetupPortal (trang cài WiFi),
                           SecureStore (NVS), TimeSync, AudioPlayer (UART), DeviceStore (LittleFS),
-                          SupabaseRest (HTTPS)
+                          SupabaseRest (HTTPS), QrCode (esp_qrcode có sẵn trong SDK)
 src/local/                BẢN THỬ (env esp32dev_local): LocalMain thay main.cpp, LocalWebServer (web + mDNS)
 data/profile.json         profile mẫu (định dạng bản sao trên mạch)
 sounds/                   9 file mp3 chép vào thẻ nhớ DFPlayer (thư mục /mp3/)
 test/test_*/              mỗi thư mục một bộ test Unity
 ```
 
-Ánh xạ với spec mục 11: `power_manager`→`PowerManager`, `wifi_manager`→`WifiManager`, `realtime_client`→`RealtimeClient`, `provisioning`→`Provisioning`+`SecureStore`, `ir_sender`→`IrSender`, `ir_learner`→`IrLearner`, `device_store`→`DeviceStore`, `error_reporter`→`ErrorReporter`, `buttons`→`UserButton` (1 nút: ngắn = OLED, giữ 5s học lệnh, 10s cài đặt, 20s reset), `display_oled`→`DisplayOled`, `audio_player`→`AudioPlayer`.
+Ánh xạ với spec mục 11: `power_manager`→`PowerManager`, `wifi_manager`→`WifiManager`, `realtime_client`→`RealtimeClient`, `provisioning`→`Provisioning`+`SecureStore`, `ir_sender`→`IrSender`, `ir_learner`→`IrLearner`, `device_store`→`DeviceStore`, `error_reporter`→`ErrorReporter`, `buttons`→`UserButton` (1 nút: ngắn = OLED — đang cài đặt thì đổi QR WiFi ↔ chữ to, giữ 5s học lệnh, 10s cài đặt, 20s reset), `display_oled`→`DisplayOled`, `audio_player`→`AudioPlayer`.
 
 ## Thêm MCU / board mới
 

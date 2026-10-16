@@ -141,6 +141,10 @@ constexpr uint8_t OLED_I2C_ADDRESS = 0x3C;
 constexpr uint8_t OLED_WIDTH = 128;
 constexpr uint8_t OLED_HEIGHT = 64;
 constexpr uint32_t OLED_TIMEOUT_MS = 10UL * 1000;
+// Mã QR WiFi cài đặt trên OLED: version 3 = 29x29 ô, 2px/ô = 58px + viền trắng 2px = 62px (vừa cao 64px)
+constexpr int OLED_QR_MAX_VERSION = 3;
+constexpr uint8_t OLED_QR_SCALE = 2;
+constexpr uint8_t OLED_QR_QUIET_PX = 2;
 
 // Nút: bấm ngắn = sáng OLED; giữ rồi thả ở mốc nào thì chạy chức năng mốc đó
 constexpr uint16_t BUTTON_DEBOUNCE_MS = 30;

@@ -1,12 +1,18 @@
 import { convertBlobToWav } from '../utils/wavUtils';
 
 
-export const GEMINI_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash'
-];
+// Model Google AI Studio, thử lần lượt. Mặc định hợp gói miễn phí (demo): Flash Lite 500 lần/ngày,
+// Flash chỉ 20 lần/ngày nên để cuối. Đổi không cần sửa code: VITE_GEMINI_MODELS="a,b,c" trong .env
+const DEFAULT_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash'];
+
+export function getGeminiModels() {
+  const fromEnv = typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_MODELS;
+  const models = (fromEnv || '').split(',').map((m) => m.trim()).filter(Boolean);
+  return models.length > 0 ? models : DEFAULT_GEMINI_MODELS;
+}
+
+// Sai tên model (404), hết lượt (429), quá tải (503) -> thử model tiếp theo
+const RETRY_NEXT_MODEL_STATUS = new Set([404, 429, 503]);
 
 export function getActiveApiKey(providedKey) {
   if (providedKey && typeof providedKey === 'string' && providedKey.trim()) {
@@ -101,35 +107,32 @@ export async function callVilaoApi(prompt, apiKey) {
 export async function callGoogleGeminiApi(payload, apiKey) {
   let lastError = null;
 
-  for (const model of GEMINI_MODELS) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+  for (const model of getGeminiModels()) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-      if (response.ok) {
-        const result = await response.json();
-        const outputText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!outputText) {
-          throw new Error(`Gemini AI (${model}) không trả về dữ liệu`);
-        }
-        const cleaned = cleanJsonOutput(outputText);
-        const parsed = JSON.parse(cleaned);
-        parsed._modelUsed = `Google Gemini (${model})`;
-        return parsed;
-      }
-
+    if (!response.ok) {
       const errBody = await response.json().catch(() => ({}));
-      lastError = new Error(errBody.error?.message || `Lỗi HTTP ${response.status}`);
-      if (response.status === 404) continue;
+      lastError = new Error(`Gemini (${model}): ${errBody.error?.message || `Lỗi HTTP ${response.status}`}`);
+      if (RETRY_NEXT_MODEL_STATUS.has(response.status)) {
+        console.warn(`[AI] ${model} lỗi ${response.status}, thử model tiếp theo`);
+        continue;
+      }
       throw lastError;
-    } catch (err) {
-      if (err.message && err.message.includes('404')) continue;
-      throw err;
     }
+
+    const result = await response.json();
+    const outputText = result.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
+    if (!outputText) {
+      throw new Error(`Gemini AI (${model}) không trả về dữ liệu`);
+    }
+    const parsed = JSON.parse(cleanJsonOutput(outputText));
+    parsed._modelUsed = `Google Gemini (${model})`;
+    return parsed;
   }
 
   throw lastError || new Error('Không thể kết nối đến Google Gemini');
@@ -170,7 +173,8 @@ Trả về DUY NHẤT một JSON hợp lệ:
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.1,
-      maxOutputTokens: 150
+      // Dư chỗ cho phần "suy nghĩ" của model 3.x; JSON trả về chỉ ~100 token
+      maxOutputTokens: 1024
     }
   };
 

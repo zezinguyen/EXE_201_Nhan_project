@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getActiveApiKey,
   analyzeVoiceWithGemini,
+  getGeminiModels,
   postVilaoChatCompletion
 } from './geminiService';
 
@@ -112,6 +113,45 @@ describe('geminiService - Seam (Voice AI & Natural Language Command Parsing)', (
           title: 'Tăng âm lượng'
         })
       );
+    });
+  });
+
+  describe('Slice 2b: Google AI Studio — đổi model khi lỗi', () => {
+    const okResponse = (text) => ({
+      ok: true,
+      json: async () => ({ candidates: [{ content: { parts: [{ text }] } }] })
+    });
+    const errResponse = (status) => ({
+      ok: false,
+      status,
+      json: async () => ({ error: { message: `HTTP ${status}` } })
+    });
+
+    it('hết lượt (429) hoặc sai tên model (404) thì thử model tiếp theo', async () => {
+      const mockFetch = vi.fn()
+        .mockResolvedValueOnce(errResponse(429))
+        .mockResolvedValueOnce(errResponse(404))
+        .mockResolvedValueOnce(okResponse('{"action":"MUTE","title":"Tắt tiếng"}'));
+      globalThis.fetch = mockFetch;
+
+      const result = await analyzeVoiceWithGemini('tắt tiếng', 'AIzaSyMockKey');
+      const models = getGeminiModels();
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch.mock.calls[2][0]).toContain(`/models/${models[2]}:generateContent`);
+      expect(result).toMatchObject({ action: 'MUTE', _modelUsed: `Google Gemini (${models[2]})` });
+    });
+
+    it('lỗi khác (VD 400 sai key) thì báo lỗi ngay, không thử tiếp', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(errResponse(400));
+      globalThis.fetch = mockFetch;
+
+      await expect(analyzeVoiceWithGemini('tắt tiếng', 'AIzaSyMockKey')).rejects.toThrow('HTTP 400');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('mọi model đều hết lượt thì báo lỗi của model cuối', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(errResponse(429));
+      await expect(analyzeVoiceWithGemini('tắt tiếng', 'AIzaSyMockKey')).rejects.toThrow('HTTP 429');
     });
   });
 

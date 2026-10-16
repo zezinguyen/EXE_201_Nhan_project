@@ -32,6 +32,19 @@ import TvSetupModal from './components/TvSetupModal';
 import { fetchBoardProfile } from './services/profileSetupService';
 
 
+
+// Vì sao lần nghe không ra chữ: nhận giọng nói của trình duyệt lỗi và không có bản ghi để gửi AI
+function describeVoiceIssue({ captureError, speechError, hasRecording, hasApiKey }) {
+  if (!hasRecording) {
+    const reason = captureError ? `${captureError.name || 'Lỗi'}: ${captureError.message || ''}`.trim() : 'không thu được âm thanh';
+    return `Không ghi âm được từ micro (${reason}). Kiểm tra micro và quyền truy cập micro của trình duyệt.`;
+  }
+  if (!hasApiKey) {
+    return 'Trình duyệt không nhận được giọng nói' + (speechError ? ` (${speechError})` : '') + ' và chưa có API Key AI để nhận diện bản ghi âm.';
+  }
+  return 'Chưa phát hiện giọng nói. Hãy bấm vào nút Micro và nói to rõ nhé!';
+}
+
 function App() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -147,6 +160,8 @@ function App() {
   const [testRecordedAudioUrl, setTestRecordedAudioUrl] = useState('');
 
   const recognitionRef = useRef(null);
+  // Lý do lần nghe gần nhất không có kết quả, để báo đúng cho người dùng
+  const voiceIssueRef = useRef({ captureError: null, speechError: null });
   const sessionIdRef = useRef(0);
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
@@ -554,6 +569,14 @@ function App() {
     setParsedCommand(null);
     commandHandledRef.current = false;
     currentTranscriptRef.current = '';
+    voiceIssueRef.current = { captureError: null, speechError: null };
+
+    // Trình duyệt chỉ cho dùng micro trên HTTPS hoặc localhost (mở bằng http://<IP> sẽ bị chặn, không báo lỗi)
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      showNotification('Micro chỉ chạy trên HTTPS hoặc localhost. Bạn đang mở bằng http://' + window.location.host + ' — hãy dùng localhost hoặc HTTPS.');
+      isStartingRef.current = false;
+      return;
+    }
 
     // 1. Kiểm tra hỗ trợ Micro từ trình duyệt
     const hasMedia = typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
@@ -584,6 +607,7 @@ function App() {
       audioCaptureRef.current = capture;
     } catch (captureErr) {
       console.warn('Không thể khởi động AudioCapture:', captureErr);
+      voiceIssueRef.current.captureError = captureErr;
       if (captureErr && (captureErr.name === 'NotAllowedError' || captureErr.name === 'PermissionDeniedError')) {
         showNotification('Microphone bị chặn! Hãy cho phép quyền truy cập Micro trên trình duyệt.');
       }
@@ -627,6 +651,7 @@ function App() {
 
         recognition.onerror = (e) => {
           console.warn('SpeechRecognition error:', e.error);
+          voiceIssueRef.current.speechError = e.error;
           if (e.error === 'not-allowed') {
             showNotification('Quyền Micro bị từ chối. Hãy cho phép Micro trên trình duyệt!');
           }
@@ -691,7 +716,7 @@ function App() {
         showNotification('Chưa nhận diện được. Hãy thử nói lại hoặc gõ lệnh trực tiếp!');
       }
     } else {
-      showNotification('Chưa phát hiện giọng nói. Hãy bấm vào nút Micro và nói to rõ nhé!');
+      showNotification(describeVoiceIssue({ ...voiceIssueRef.current, hasRecording: Boolean(recordedBlob), hasApiKey: Boolean(geminiApiKey) }));
     }
   };
 

@@ -61,6 +61,7 @@ SerialBridge serialBridge;
 ConnectionState connection = ConnectionState::NoWifi;
 uint32_t lastPresenceMs = 0;
 uint32_t lastDisplayMs = 0;
+bool setupShowQr = true;  // Chế độ cài đặt: QR WiFi trước, bấm nút ngắn để đổi sang chữ to
 bool lowBatteryReported = false;
 bool lowBatteryAnnounced = false;
 bool wifiWasConnected = false;
@@ -83,6 +84,7 @@ void onBroadcast(const char* event, JsonObjectConst payload) {
 void onCommandResult(const char* /*commandId*/, const char* error) { feedback.onCommandResult(error); }
 
 void enterSetupMode(uint32_t nowMs) {
+    setupShowQr = true;
     provisioning.startPairing(nowMs);
     wifi.startSetupPortal(nowMs);
     feedback.onSetupMode();
@@ -94,7 +96,13 @@ void onButtonAction(ButtonAction action) {
 
     switch (action) {
         case ButtonAction::None:
+            break;
         case ButtonAction::ShowStatus:
+            // Đang hiện WiFi cài đặt (màn hình luôn sáng): bấm ngắn đổi QR <-> chữ to, vẽ lại ngay
+            if (wifi.setupSsid() != nullptr) {
+                setupShowQr = !setupShowQr;
+                lastDisplayMs = nowMs - DISPLAY_REFRESH_MS;
+            }
             break;
         case ButtonAction::LearnCommand:
             if (!commandHandler.isLearning()) {
@@ -277,6 +285,7 @@ void updateIndicators(uint32_t nowMs) {
         status.charging = power.isCharging();
         status.setupSsid = wifi.setupSsid();
         status.setupPassword = wifi.setupPassword();
+        status.setupShowQr = setupShowQr;
         status.pairingCode = provisioning.pairingCode();
         status.message = currentMessage(nowMs);
         display.show(status);
