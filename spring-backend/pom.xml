@@ -23,7 +23,7 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
         
-        <!-- Gọi HTTP request (Sang FPT.AI, Viettel AI) -->
+        <!-- HTTP Client (WebClient) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>

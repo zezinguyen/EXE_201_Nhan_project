@@ -119,6 +119,7 @@ function App() {
   const [isTestingSupabase, setIsTestingSupabase] = useState(false);
   const [isSupabaseOnline, setIsSupabaseOnline] = useState(() => isSupabaseConfigured());
   const [sqlCopied, setSqlCopied] = useState(false);
+  const [textCommandInput, setTextCommandInput] = useState('');
 
   // Cấu hình IoT
   const [iotAutoSend, setIotAutoSend] = useState(() => getIotConfig().autoSend);
@@ -510,6 +511,16 @@ function App() {
     showNotification(`Chưa nhận diện được: "${clean}"`);
   };
 
+  // Xử lý gửi lệnh thủ công (gõ phím hoặc chọn nhanh)
+  const handleManualCommandSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!textCommandInput.trim()) return;
+    const cmd = textCommandInput.trim();
+    setTextCommandInput('');
+    setTranscript(cmd);
+    processVoiceText(cmd);
+  };
+
   // Quản lý Microphone & Nhận diện
   const startListening = async () => {
     if (isListeningRef.current || isStartingRef.current) return;
@@ -523,25 +534,45 @@ function App() {
     commandHandledRef.current = false;
     currentTranscriptRef.current = '';
 
+    // 1. Kiểm tra hỗ trợ Micro từ trình duyệt
+    const hasMedia = typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+
+    if (!hasMedia && !SpeechRecognition) {
+      showNotification('Trình duyệt không hỗ trợ microphone hoặc chưa cho phép kết nối.');
+      isStartingRef.current = false;
+      return;
+    }
+
     try {
       const capture = await startAudioCapture({
         deviceId: selectedDeviceId,
-        onVolumeChange: (vol) => {
+        onVolume: (vol) => {
           if (sessionIdRef.current === currentSession) setLiveVolume(vol);
         },
-        onFftChange: (bands) => {
+        onFrequencyBands: (bands) => {
           if (sessionIdRef.current === currentSession) setFrequencyBands(bands);
+        },
+        onError: (err) => {
+          console.warn('Lỗi AudioCapture:', err);
+          if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+            showNotification('Microphone bị chặn! Bạn vui lòng bấm icon ổ khóa trên thanh địa chỉ để Cho phép (Allow) Micro.');
+          }
         }
       });
       audioCaptureRef.current = capture;
-    } catch { }
+    } catch (captureErr) {
+      console.warn('Không thể khởi động AudioCapture:', captureErr);
+      if (captureErr && (captureErr.name === 'NotAllowedError' || captureErr.name === 'PermissionDeniedError')) {
+        showNotification('Microphone bị chặn! Hãy cho phép quyền truy cập Micro trên trình duyệt.');
+      }
+    }
 
     setIsListening(true);
     isListeningRef.current = true;
     isStartingRef.current = false;
 
-    // Web Speech API
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // 2. Web Speech API nhận diện trực tiếp bằng tiếng Việt
     if (SpeechRecognition) {
       try {
         const recognition = new SpeechRecognition();
@@ -573,17 +604,25 @@ function App() {
           }, 1400);
         };
 
-        recognition.onerror = () => {};
+        recognition.onerror = (e) => {
+          console.warn('SpeechRecognition error:', e.error);
+          if (e.error === 'not-allowed') {
+            showNotification('Quyền Micro bị từ chối. Hãy cho phép Micro trên trình duyệt!');
+          }
+        };
+
         recognitionRef.current = recognition;
         recognition.start();
-      } catch { }
+      } catch (recErr) {
+        console.warn('Lỗi khởi tạo SpeechRecognition:', recErr);
+      }
     }
 
     maxSessionTimerRef.current = setTimeout(() => {
       if (isListeningRef.current && sessionIdRef.current === currentSession) {
         stopListening();
       }
-    }, 6500);
+    }, 7000);
   };
 
   const stopListening = async () => {
@@ -603,16 +642,18 @@ function App() {
     if (audioCaptureRef.current) {
       try {
         const res = await audioCaptureRef.current.stop();
-        recordedBlob = res?.blob;
-      } catch { }
+        recordedBlob = (res instanceof Blob) ? res : res?.blob;
+      } catch (stopErr) {
+        console.warn('Lỗi stop audioCapture:', stopErr);
+      }
       audioCaptureRef.current = null;
     }
 
     setLiveVolume(0);
     setFrequencyBands(new Array(20).fill(0));
 
-    const finalQuery = currentTranscriptRef.current || transcript || interimText;
-    if (finalQuery.trim()) {
+    const finalQuery = (currentTranscriptRef.current || transcript || interimText).trim();
+    if (finalQuery) {
       processVoiceText(finalQuery);
     } else if (recordedBlob && geminiApiKey) {
       showNotification('Đang nhận diện giọng nói qua Gemini AI...');
@@ -621,8 +662,15 @@ function App() {
         if (aiRes && aiRes.transcript) {
           setTranscript(aiRes.transcript);
           processVoiceText(aiRes.transcript);
+        } else {
+          showNotification('Chưa nghe rõ giọng nói. Bạn hãy nói to hơn hoặc dùng các nút lệnh bên dưới!');
         }
-      } catch { }
+      } catch (aiErr) {
+        console.error('Lỗi Gemini AI audio:', aiErr);
+        showNotification('Chưa nhận diện được. Hãy thử nói lại hoặc gõ lệnh trực tiếp!');
+      }
+    } else {
+      showNotification('Chưa phát hiện giọng nói. Hãy bấm vào nút Micro và nói to rõ nhé!');
     }
   };
 
@@ -635,27 +683,29 @@ function App() {
 
   return (
     <div className="app-viewport">
-      {/* 1. HEADER TINH TẾ & GỌN GÀNG */}
+      {/* 1. HEADER TINH TẾ & GỌN GÀNG (KHÔNG TRÀN FORM) */}
       <header className="app-header">
         <div className="header-brand">
           <div className="brand-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          <span className="header-title">SMARTHOME</span>
+          <div className="header-brand-text">
+            <span className="header-title">SmartHome</span>
+            <span className="header-badge-tag">AI Voice</span>
+          </div>
         </div>
 
         <div className="header-actions">
-          <div className={`status-pill ${isSupabaseOnline ? 'online' : ''}`} title="Supabase Cloud">
+          {/* Status pill gọn gàng */}
+          <div
+            className={`status-pill ${isSupabaseOnline ? 'online' : ''}`}
+            title={isSupabaseOnline ? 'Supabase Cloud: Đã kết nối' : 'Supabase Cloud: Ngoại tuyến'}
+          >
             <span className="status-dot" />
-            <span>{isSupabaseOnline ? 'cloud' : 'local'}</span>
-          </div>
-
-          <div className={`status-pill ${isAnyBoardOnline ? 'online' : ''}`} title="Mạch ESP32">
-            <span className="status-dot" />
-            <span>{isAnyBoardOnline ? 'online' : 'offline'}</span>
+            <span className="status-label">{isSupabaseOnline ? 'Cloud' : 'Offline'}</span>
           </div>
 
           <button
@@ -665,7 +715,7 @@ function App() {
             aria-label="Thành viên gia đình"
             title="Quản lý thành viên dùng chung mạch"
           >
-            <span style={{ fontSize: '16px' }}>👨‍👩‍👧</span>
+            <span className="family-btn-icon">👥</span>
             <span className="family-count-badge">{homeMembers.length}</span>
           </button>
 
@@ -673,9 +723,10 @@ function App() {
             type="button"
             className="header-icon-btn"
             onClick={() => setShowSettingsModal(true)}
-            aria-label="Cài đặt"
+            aria-label="Cài đặt hệ thống"
+            title="Cài đặt hệ thống & Supabase"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
@@ -686,17 +737,27 @@ function App() {
       {/* TOAST THÔNG BÁO */}
       {actionToast && (
         <div className="action-toast-banner" role="status">
+          <span className="toast-icon">✨</span>
           <span className="toast-text">{actionToast}</span>
         </div>
       )}
 
-      {/* 2. THANH TRẠNG THÁI MẠCH PHẦN CỨNG ESP32 (Specs 4.4 Multi-board) */}
+      {/* 2. THANH TRẠNG THÁI MẠCH PHẦN CỨNG ESP32 */}
       <section className="boards-section">
+        <div className="section-label-row">
+          <span className="section-micro-label">MẠCH ĐIỀU KHIỂN ESP32 ({boards.length})</span>
+          <span className={`board-live-pill ${isAnyBoardOnline ? 'online' : 'offline'}`}>
+            {isAnyBoardOnline ? '🟢 Online' : '⚪ Đang chờ kết nối'}
+          </span>
+        </div>
         <div className="boards-scroll-container">
           {boards.map((b) => (
             <div key={b.id} className={`board-card-pill ${b.isOnline ? 'online' : 'offline'}`}>
               <div className="board-pill-header">
-                <span className="board-pill-name">{b.name}</span>
+                <div className="board-name-wrap">
+                  <span className="board-icon-chip">{b.isOnline ? '⚡' : '📡'}</span>
+                  <span className="board-pill-name">{b.name}</span>
+                </div>
                 <span className={`board-pill-badge ${b.isOnline ? 'online' : 'offline'}`}>
                   {b.isOnline ? 'ONLINE' : 'OFFLINE'}
                 </span>
@@ -721,14 +782,15 @@ function App() {
             onClick={() => setShowPairingModal(true)}
             title="Ghép đôi mạch ESP32 mới bằng mã 6 số"
           >
-            <span style={{ fontSize: '18px' }}>+</span>
+            <div className="add-board-icon">+</div>
             <span>Ghép mạch</span>
           </button>
         </div>
       </section>
 
-      {/* 3. VÙNG MICRO TRỢ LÝ GIỌNG NÓI */}
+      {/* 3. VÙNG MICRO TRỢ LÝ GIỌNG NÓI CAO CẤP */}
       <section className="mic-hero-section">
+        <div className="mic-glow-halo" />
         <div className="mic-button-wrapper">
           <button
             type="button"
@@ -736,7 +798,8 @@ function App() {
             onClick={handleMicClick}
             aria-label={isListening ? 'Đang lắng nghe' : 'Nhấn để ra lệnh'}
           >
-            <svg className="mic-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <div className="mic-inner-glow" />
+            <svg className="mic-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" y1="19" x2="12" y2="22" />
@@ -749,7 +812,7 @@ function App() {
             <div className="mic-active-feedback">
               <div className="audio-wave-visualizer">
                 {frequencyBands.slice(0, 14).map((band, i) => {
-                  const h = Math.max(4, Math.min(28, (band / 255) * 32));
+                  const h = Math.max(5, Math.min(32, (band / 255) * 36));
                   return (
                     <div
                       key={i}
@@ -761,19 +824,62 @@ function App() {
               </div>
 
               <div className="mic-live-vol-pill active-signal">
+                <span className="live-vol-dot" />
                 <span className="vol-text">Đang nghe: {liveVolume > 5 ? `${liveVolume}%` : 'Bạn hãy nói...'}</span>
               </div>
 
               {interimText || transcript ? (
                 <div className="mic-transcript-quote">“{interimText || transcript}”</div>
               ) : (
-                <p className="mic-subtext">Nói: "Bật TV", "Mở YouTube", "Điều hòa 24 độ"...</p>
+                <p className="mic-subtext">Đang lắng nghe khẩu lệnh của bạn...</p>
               )}
             </div>
           ) : (
             <div className="mic-idle-feedback">
-              <h1 className="mic-heading-title">Nhấn để nói</h1>
-              <p className="mic-subtext">Ví dụ: Bật TV, mở YouTube, điều hòa 24 độ...</p>
+              <h1 className="mic-heading-title">Chạm để ra lệnh</h1>
+              <p className="mic-subtext">Nói tự nhiên hoặc chọn lệnh nhanh bên dưới:</p>
+              
+              <div className="mic-quick-suggestions">
+                <button type="button" className="suggestion-pill-chip" onClick={() => handleTvCommand('TV_POWER_ON', 'Bật Tivi')}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="15" x="2" y="3" rx="2" />
+                    <polyline points="17 2 12 7 7 2" />
+                  </svg>
+                  <span>Bật TV</span>
+                </button>
+                <button type="button" className="suggestion-pill-chip" onClick={() => handleTvCommand('APP_YOUTUBE', 'Mở YouTube')}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <span>YouTube</span>
+                </button>
+                <button type="button" className="suggestion-pill-chip" onClick={() => handleAcControl({ temp: 24, power: true })}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M12 2v20" />
+                    <path d="m4.93 4.93 14.14 14.14" />
+                    <path d="M2 12h20" />
+                    <path d="m4.93 19.07 14.14-14.14" />
+                  </svg>
+                  <span>Điều hòa 24°</span>
+                </button>
+              </div>
+
+              {/* Ô gõ lệnh hỗ trợ trực tiếp khi micro không tiện dùng */}
+              <form className="quick-command-form" onSubmit={handleManualCommandSubmit}>
+                <input
+                  type="text"
+                  className="quick-command-input"
+                  placeholder="Hoặc gõ: Bật TV, Mở YouTube, Điều hòa 22 độ..."
+                  value={textCommandInput}
+                  onChange={(e) => setTextCommandInput(e.target.value)}
+                />
+                <button type="submit" className="quick-command-submit-btn" aria-label="Gửi lệnh">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
             </div>
           )}
         </div>
@@ -807,94 +913,246 @@ function App() {
         </section>
       )}
 
-      {/* 5. ĐIỀU KHIỂN TIVI LG */}
+      {/* 5. ĐIỀU KHIỂN TIVI LG (REMOTE CARD CHỈN CHU) */}
       <section className="devices-section">
-        <h2 className="section-heading">Tivi Phòng Khách</h2>
-        <div className="quick-chips-container" style={{ marginTop: '8px' }}>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('TV_POWER_ON', 'Bật Tivi')}>
-            📺 Bật TV
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('TV_POWER_OFF', 'Tắt Tivi')}>
-            🔌 Tắt TV
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('APP_YOUTUBE', 'Mở YouTube')}>
-            ▶️ YouTube
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('VOL_UP', 'Tăng âm lượng')}>
-            🔊 To lên (+)
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('VOL_DOWN', 'Giảm âm lượng')}>
-            🔉 Nhỏ lại (-)
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('MUTE', 'Tắt tiếng')}>
-            🔇 Mute
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('CH_VTV1', 'Kênh VTV1')}>
-            📡 VTV1
-          </button>
-          <button type="button" className="command-chip-btn" onClick={() => handleTvCommand('CH_VTV3', 'Kênh VTV3')}>
-            📡 VTV3
-          </button>
+        <div className="device-card-container tv-remote-card">
+          <div className="device-card-header">
+            <div className="device-title-group">
+              <div className="device-icon-badge tv-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="15" x="2" y="3" rx="2" />
+                  <polyline points="17 2 12 7 7 2" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="device-card-title">Tivi Phòng Khách</h2>
+                <span className="device-card-subtitle">Smart TV • Hồng ngoại NEC</span>
+              </div>
+            </div>
+            <div className="device-status-badge">
+              <span className="status-dot-mini" />
+              <span>Sẵn sàng</span>
+            </div>
+          </div>
+
+          {/* Hàng 1: Nguồn & YouTube */}
+          <div className="tv-primary-actions-row">
+            <button
+              type="button"
+              className="tv-action-btn tv-power-on"
+              onClick={() => handleTvCommand('TV_POWER_ON', 'Bật Tivi')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                <line x1="12" y1="2" x2="12" y2="12" />
+              </svg>
+              <span className="btn-label">Bật TV</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn tv-power-off"
+              onClick={() => handleTvCommand('TV_POWER_OFF', 'Tắt Tivi')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                <line x1="12" y1="2" x2="12" y2="12" />
+              </svg>
+              <span className="btn-label">Tắt TV</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn tv-youtube"
+              onClick={() => handleTvCommand('APP_YOUTUBE', 'Mở YouTube')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <span className="btn-label">YouTube</span>
+            </button>
+          </div>
+
+          {/* Hàng 2: Âm lượng & Kênh truyền hình */}
+          <div className="tv-controls-grid">
+            <button
+              type="button"
+              className="tv-action-btn"
+              onClick={() => handleTvCommand('VOL_UP', 'Tăng âm lượng')}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+              <span className="btn-label">To (+)</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn"
+              onClick={() => handleTvCommand('VOL_DOWN', 'Giảm âm lượng')}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              <span className="btn-label">Nhỏ (-)</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn"
+              onClick={() => handleTvCommand('MUTE', 'Tắt tiếng')}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+              <span className="btn-label">Mute</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn tv-channel"
+              onClick={() => handleTvCommand('CH_VTV1', 'Kênh VTV1')}
+            >
+              <span className="channel-badge">HD</span>
+              <span className="btn-label">VTV1</span>
+            </button>
+
+            <button
+              type="button"
+              className="tv-action-btn tv-channel"
+              onClick={() => handleTvCommand('CH_VTV3', 'Kênh VTV3')}
+            >
+              <span className="channel-badge">HD</span>
+              <span className="btn-label">VTV3</span>
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* 6. ĐIỀU KHIỂN ĐIỀU HÒA PANASONIC (AC PANEL) */}
-      <section className="ac-panel-card">
-        <div className="ac-panel-header">
-          <div>
-            <h3 style={{ fontSize: '15px', fontWeight: '700' }}>Điều hòa Panasonic</h3>
-            <span style={{ fontSize: '12px', color: 'var(--secondary-text)' }}>Chế độ làm lạnh IRac</span>
-          </div>
-          <button
-            type="button"
-            className="command-chip-btn"
-            style={{ margin: 0, background: devices.find(d => d.id === 'ac_living')?.active ? 'var(--primary-green)' : '#E2E8F0', color: devices.find(d => d.id === 'ac_living')?.active ? '#fff' : '#475569' }}
-            onClick={() => {
-              const currentActive = devices.find(d => d.id === 'ac_living')?.active;
-              handleAcControl({ power: !currentActive });
-            }}
-          >
-            {devices.find(d => d.id === 'ac_living')?.active ? 'Đang Bật' : 'Đã Tắt'}
-          </button>
-        </div>
-
-        <div className="ac-temp-controller">
-          <button
-            type="button"
-            className="ac-stepper-btn"
-            onClick={() => handleAcControl({ temp: Math.max(16, acTemp - 1) })}
-          >
-            -
-          </button>
-          <div className="ac-temp-display">
-            <span className="ac-temp-number">{acTemp}</span>
-            <span className="ac-temp-unit">độ C</span>
-          </div>
-          <button
-            type="button"
-            className="ac-stepper-btn"
-            onClick={() => handleAcControl({ temp: Math.min(30, acTemp + 1) })}
-          >
-            +
-          </button>
-        </div>
-
-        <div className="ac-modes-row">
-          {[
-            { id: 'cool', label: '❄️ Lạnh' },
-            { id: 'dry', label: '💧 Hút ẩm' },
-            { id: 'fan', label: '🌀 Quạt' },
-            { id: 'auto', label: '🔄 Tự động' }
-          ].map((m) => (
+      {/* 6. ĐIỀU KHIỂN ĐIỀU HÒA PANASONIC (THERMOSTAT CARD SANG TRỌNG) */}
+      <section className="devices-section">
+        <div className="device-card-container ac-thermostat-card">
+          <div className="ac-panel-header">
+            <div className="device-title-group">
+              <div className="device-icon-badge ac-icon-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2v20" />
+                  <path d="m4.93 4.93 14.14 14.14" />
+                  <path d="M2 12h20" />
+                  <path d="m4.93 19.07 14.14-14.14" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="device-card-title">Điều hòa Panasonic</h3>
+                <span className="device-card-subtitle">Inverter • Giao thức IRac</span>
+              </div>
+            </div>
             <button
-              key={m.id}
               type="button"
-              className={`ac-mode-chip ${acMode === m.id ? 'active' : ''}`}
-              onClick={() => handleAcControl({ mode: m.id })}
+              className={`ac-power-toggle-btn ${devices.find(d => d.id === 'ac_living')?.active ? 'active' : ''}`}
+              onClick={() => {
+                const currentActive = devices.find(d => d.id === 'ac_living')?.active;
+                handleAcControl({ power: !currentActive });
+              }}
             >
-              {m.label}
+              <span className="power-indicator-dot" />
+              <span>{devices.find(d => d.id === 'ac_living')?.active ? 'Đang Bật' : 'Đã Tắt'}</span>
             </button>
-          ))}
+          </div>
+
+          <div className="ac-temp-controller">
+            <button
+              type="button"
+              className="ac-stepper-btn"
+              onClick={() => handleAcControl({ temp: Math.max(16, acTemp - 1) })}
+              aria-label="Giảm nhiệt độ"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+            <div className="ac-temp-display">
+              <span className="ac-temp-label">Nhiệt độ cài đặt</span>
+              <div className="ac-temp-value-row">
+                <span className="ac-temp-number">{acTemp}</span>
+                <span className="ac-temp-unit">°C</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ac-stepper-btn"
+              onClick={() => handleAcControl({ temp: Math.min(30, acTemp + 1) })}
+              aria-label="Tăng nhiệt độ"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="ac-modes-segmented">
+            {[
+              {
+                id: 'cool',
+                label: 'Lạnh',
+                icon: (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M12 2v20" />
+                    <path d="m4.93 4.93 14.14 14.14" />
+                    <path d="M2 12h20" />
+                    <path d="m4.93 19.07 14.14-14.14" />
+                  </svg>
+                )
+              },
+              {
+                id: 'dry',
+                label: 'Hút ẩm',
+                icon: (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+                  </svg>
+                )
+              },
+              {
+                id: 'fan',
+                label: 'Quạt',
+                icon: (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 9a3 3 0 0 0-3-3H6a3 3 0 0 0 0 6h3" />
+                    <path d="M15 12a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v3" />
+                    <path d="M12 15a3 3 0 0 0 3 3h3a3 3 0 0 0 0-6h-3" />
+                    <path d="M9 12a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0v-3" />
+                  </svg>
+                )
+              },
+              {
+                id: 'auto',
+                label: 'Tự động',
+                icon: (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                )
+              }
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`ac-mode-segmented-btn ${acMode === m.id ? 'active' : ''}`}
+                onClick={() => handleAcControl({ mode: m.id })}
+              >
+                <span className="mode-icon-svg">{m.icon}</span>
+                <span className="mode-label">{m.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

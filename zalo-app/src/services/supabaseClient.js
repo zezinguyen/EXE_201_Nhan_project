@@ -8,7 +8,8 @@ export function getSupabaseConfig() {
   const storedUrl = typeof localStorage !== 'undefined' ? localStorage.getItem('supabase_url') : '';
   const storedKey = typeof localStorage !== 'undefined' ? localStorage.getItem('supabase_anon_key') : '';
 
-  const url = (storedUrl || envUrl || '').trim().replace(/\/+$/, '');
+  const rawUrl = (storedUrl || envUrl || '').trim();
+  const url = rawUrl.replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
   const anonKey = (storedKey || envKey || '').trim();
 
   return { url, anonKey };
@@ -17,7 +18,7 @@ export function getSupabaseConfig() {
 export function saveSupabaseConfig({ url, anonKey }) {
   if (typeof localStorage === 'undefined') return;
   if (url !== undefined) {
-    const cleanUrl = url.trim().replace(/\/+$/, '');
+    const cleanUrl = url.trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
     localStorage.setItem('supabase_url', cleanUrl);
   }
   if (anonKey !== undefined) localStorage.setItem('supabase_anon_key', anonKey.trim());
