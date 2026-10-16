@@ -200,7 +200,7 @@ export async function transcribeAndAnalyzeAudioWithGemini(audioBlob, apiKey) {
   }
 
   const prompt = `
-Bạn là Trợ lý AI Nhà thông minh chuyên nghe âm thanh giọng nói tiếng Việt từ micro:
+Bạn là Trợ lý AI Nhà thông minh chuyên nghe âm thanh giọng nói tiếng Việt từ micro để điều khiển Tivi và Điều hòa:
 
 QUY TẮC NHẬN DIỆN:
 1. TRÍCH XUẤT TRUNG THỰC: Hãy nghe kỹ và ghi lại CHÍNH XÁC lời nói tiếng Việt của người dùng vào trường "transcript".
@@ -219,19 +219,26 @@ QUY TẮC NHẬN DIỆN:
      "explanation": "Không phát hiện tiếng người nói."
    }
 
-DANH SÁCH LỆNH TIVI (Chỉ phân loại khi người dùng ra lệnh điều khiển):
+DANH SÁCH LỆNH:
+--- THIẾT BỊ TIVI (Smart TV) ---
 1. YOUTUBE_SEARCH: Khi người dùng muốn xem kênh, bài hát, ca sĩ, phim trên YouTube (VD: "mở kênh VTV24", "xem MixiGaming", "mở FAP TV", "bật nhạc thiếu nhi", "xem hài Hoài Linh", "mở nhạc Sơn Tùng")
-   -> IR: 0x20DF58A7 | Icon: ▶️ | Title: Mở [Nội dung] trên YouTube | channelQuery: "[Tên kênh/nội dung]"
-2. APP_YOUTUBE: Mở chung ứng dụng YouTube -> IR: 0x20DF58A7 | Icon: ▶️ | Title: Mở YouTube | channelQuery: ""
-3. APP_NETFLIX: Netflix, nét phờ lích, coi phim... -> IR: 0x20DF5EA1 | Icon: 🍿 | Title: Mở Netflix | channelQuery: ""
-4. TV_POWER_ON: Bật tivi, mở tivi, mở đài, lên tivi... -> IR: 0x20DF10EF | Icon: 📺 | Title: Bật Tivi | channelQuery: ""
-5. TV_POWER_OFF: Tắt tivi, tắt đài, tắt máy, đi ngủ... -> IR: 0x20DF10EF | Icon: 🔌 | Title: Tắt Tivi | channelQuery: ""
-6. VOL_UP: Tăng âm lượng, cho to lên, vặn to lên, lớn tiếng... -> IR: 0x20DF40BF | Icon: 🔊 | Title: Tăng âm lượng | channelQuery: ""
-7. VOL_DOWN: Giảm âm lượng, nhỏ lại, bớt ồn, bé lại... -> IR: 0x20DFC03F | Icon: 🔉 | Title: Giảm âm lượng | channelQuery: ""
-8. MUTE: Tắt tiếng, im lặng, câm tiếng, ngắt tiếng... -> IR: 0x20DF906F | Icon: 🔇 | Title: Tắt tiếng (Mute) | channelQuery: ""
-9. CH_VTV1: Thời sự, kênh 1, vtv1, tin tức... -> IR: 0x20DF00FF | Icon: 📡 | Title: Kênh VTV1 | channelQuery: ""
-10. CH_VTV3: Kênh 3, vtv3, phim truyện... -> IR: 0x20DF08F7 | Icon: 📡 | Title: Kênh VTV3 | channelQuery: ""
-11. UNKNOWN: Câu nói không điều khiển Tivi -> IR: 0x00000000 | Icon: ❓ | Title: Lệnh chưa xác định | channelQuery: ""
+   -> IR: 0x20DF58A7 | Icon: ▶️ | Title: Mở [Nội dung] trên YouTube | channelQuery: "[Tên kênh/nội dung]" | device: "Smart TV (Hồng ngoại)"
+2. APP_YOUTUBE: Mở chung ứng dụng YouTube -> IR: 0x20DF58A7 | Icon: ▶️ | Title: Mở YouTube | channelQuery: "" | device: "Smart TV (Hồng ngoại)"
+3. APP_NETFLIX: Netflix, nét phờ lích, coi phim... -> IR: 0x20DF5EA1 | Icon: 🍿 | Title: Mở Netflix | device: "Smart TV (Hồng ngoại)"
+4. TV_POWER_ON: Bật tivi, mở tivi, mở đài, lên tivi... -> IR: 0x20DF10EF | Icon: 📺 | Title: Bật Tivi | device: "Smart TV (Hồng ngoại)"
+5. TV_POWER_OFF: Tắt tivi, tắt đài, tắt máy, đi ngủ... -> IR: 0x20DF10EF | Icon: 🔌 | Title: Tắt Tivi | device: "Smart TV (Hồng ngoại)"
+6. VOL_UP: Tăng âm lượng, cho to lên, vặn to lên, lớn tiếng... -> IR: 0x20DF40BF | Icon: 🔊 | Title: Tăng âm lượng | device: "Smart TV (Hồng ngoại)"
+7. VOL_DOWN: Giảm âm lượng, nhỏ lại, bớt ồn, bé lại... -> IR: 0x20DFC03F | Icon: 🔉 | Title: Giảm âm lượng | device: "Smart TV (Hồng ngoại)"
+8. MUTE: Tắt tiếng, im lặng, câm tiếng, ngắt tiếng... -> IR: 0x20DF906F | Icon: 🔇 | Title: Tắt tiếng (Mute) | device: "Smart TV (Hồng ngoại)"
+9. CH_VTV1: Thời sự, kênh 1, vtv1, tin tức... -> IR: 0x20DF00FF | Icon: 📡 | Title: Kênh VTV1 | device: "Smart TV (Hồng ngoại)"
+10. CH_VTV3: Kênh 3, vtv3, phim truyện... -> IR: 0x20DF08F7 | Icon: 📡 | Title: Kênh VTV3 | device: "Smart TV (Hồng ngoại)"
+
+--- THIẾT BỊ ĐIỀU HÒA (Air Conditioner) ---
+11. AC_COOL: Bật điều hòa, mở điều hòa, làm mát, mở máy lạnh, bật máy lạnh... -> IR: 0x00000000 | Icon: ❄️ | Title: Bật điều hòa làm mát | device: "Điều hòa (Hồng ngoại)"
+12. AC_OFF: Tắt điều hòa, tắt máy lạnh, nóng quá tắt đi, lạnh quá tắt máy... -> IR: 0x00000000 | Icon: 🛑 | Title: Tắt điều hòa | device: "Điều hòa (Hồng ngoại)"
+13. AC_SET_TEMP: Đặt nhiệt độ điều hòa (VD: "điều hòa 24 độ", "26 độ", "hạ xuống 22 độ", "cho 25 độ") -> IR: 0x00000000 | Icon: 🌡️ | Title: Điều hòa [N]°C | temp: [số nguyên 16-30] | device: "Điều hòa (Hồng ngoại)"
+
+14. UNKNOWN: Câu nói không điều khiển Tivi hay Điều hòa -> IR: 0x00000000 | Icon: ❓ | Title: Lệnh chưa xác định | device: "Chưa xác định"
 
 Trả về DUY NHẤT một JSON hợp lệ:
 {
@@ -241,7 +248,8 @@ Trả về DUY NHẤT một JSON hợp lệ:
   "channelQuery": "Từ khóa tìm kiếm nếu có",
   "irCode": "Mã IR tương ứng",
   "icon": "Emoji",
-  "device": "Smart TV (Hồng ngoại)",
+  "device": "Tên thiết bị",
+  "temp": 24,
   "explanation": "Giải thích ngắn 1 câu"
 }
 `;
@@ -255,8 +263,7 @@ Trả về DUY NHẤT một JSON hợp lệ:
       console.warn('Lỗi convertBlobToWav, dùng blob gốc:', e);
     }
 
-    // Nếu không có âm thanh giọng nói thực tế (im lặng / mic rè nền) -> trả về kết quả im lặng ngay lập tức
-    if (wavBlob && wavBlob.isSilence) {
+    if (!wavBlob || (wavBlob.size === 0 && wavBlob.peak === 0)) {
       return {
         transcript: '',
         action: 'UNKNOWN',
@@ -265,7 +272,7 @@ Trả về DUY NHẤT một JSON hợp lệ:
         irCode: '0x00000000',
         icon: '❓',
         device: 'Chưa xác định',
-        explanation: 'Không phát hiện tiếng người nói (âm thanh micro quá nhỏ hoặc im lặng).'
+        explanation: 'Không có dữ liệu âm thanh từ microphone.'
       };
     }
 

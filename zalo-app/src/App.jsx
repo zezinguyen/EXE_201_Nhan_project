@@ -166,6 +166,7 @@ function App() {
   // Lý do lần nghe gần nhất không có kết quả, để báo đúng cho người dùng
   const voiceIssueRef = useRef({ captureError: null, speechError: null });
   const sessionIdRef = useRef(0);
+  const sessionStartTimeRef = useRef(0);
   const isListeningRef = useRef(false);
   const isStartingRef = useRef(false);
   const commandHandledRef = useRef(false);
@@ -282,6 +283,20 @@ function App() {
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
+  }, []);
+
+  // Tự động quét và chọn Microphone vật lý tốt nhất (loại bỏ micro ảo, lọc tạp âm)
+  useEffect(() => {
+    let alive = true;
+    getAudioInputDevices().then((devices) => {
+      if (!alive || !devices || devices.length === 0) return;
+      setAudioDevices(devices);
+      const best = pickDefaultMicrophone(devices);
+      if (best) setSelectedDeviceId(best);
+    }).catch((err) => {
+      console.warn('Lỗi quét thiết bị microphone lúc khởi động:', err);
+    });
+    return () => { alive = false; };
   }, []);
 
   // Đọc giao thức điều hòa đang lưu trên mạch (mạch offline thì giữ "Chọn giao thức")
@@ -565,6 +580,7 @@ function App() {
     if (isListeningRef.current || isStartingRef.current) return;
     isStartingRef.current = true;
     sessionIdRef.current += 1;
+    sessionStartTimeRef.current = Date.now();
     const currentSession = sessionIdRef.current;
 
     setTranscript('');
@@ -625,7 +641,7 @@ function App() {
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'vi-VN';
-        recognition.continuous = false; // Ngắt câu tự động để phản hồi ngay lập tức
+        recognition.continuous = false; // Ngắt câu tự động khi dứt lời
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
@@ -662,20 +678,19 @@ function App() {
           if (e.error === 'not-allowed') {
             showNotification('Quyền Micro bị từ chối. Hãy cho phép Micro trên trình duyệt!');
             stopListening();
-          } else if (e.error === 'network' || e.error === 'audio-capture') {
-            // Khi Web Speech API lỗi mạng Google hoặc kẹt capture, tự động chuyển ngay sang Gemini AI sau 2s
-            if (!currentTranscriptRef.current) {
-              setTimeout(() => {
-                if (isListeningRef.current) stopListening();
-              }, 2000);
-            }
           }
+          // Với lỗi 'network' hoặc 'no-speech' của Chrome, không dừng gấp
+          // mà để MediaRecorder tiếp tục thu âm hoàn chỉnh cho Gemini AI xử lý
         };
 
         recognition.onend = () => {
-          // Trình duyệt tự dừng khi dứt câu
-          if (isListeningRef.current) {
+          if (!isListeningRef.current) return;
+          const elapsed = Date.now() - sessionStartTimeRef.current;
+          // Nếu đã có văn bản nhận diện được hoặc đã nói hơn 3.5s, tự dừng và phân tích
+          if (currentTranscriptRef.current || elapsed >= 3500) {
             stopListening();
+          } else {
+            console.log('Web Speech API dừng sớm khi chưa có transcript, tiếp tục ghi âm qua MediaRecorder...');
           }
         };
 
@@ -690,7 +705,7 @@ function App() {
       if (isListeningRef.current && sessionIdRef.current === currentSession) {
         stopListening();
       }
-    }, 6000);
+    }, 4500);
   };
 
   const stopListening = async () => {
@@ -730,6 +745,17 @@ function App() {
         if (aiRes && aiRes.transcript) {
           setTranscript(aiRes.transcript);
           processVoiceText(aiRes.transcript);
+        } else if (aiRes && aiRes.action && aiRes.action !== 'UNKNOWN') {
+          setTranscript(aiRes.title || aiRes.action);
+          if (aiRes.device?.toLowerCase().includes('điều hòa') || aiRes.action.startsWith('AC_')) {
+            await handleAcControl({
+              power: aiRes.action !== 'AC_OFF',
+              temp: aiRes.temp || 24,
+              mode: 'cool'
+            });
+          } else {
+            await handleTvCommand(aiRes.action, aiRes.title || 'Lệnh Tivi');
+          }
         } else {
           showNotification('Chưa nghe rõ giọng nói. Bạn hãy nói to hơn hoặc dùng các nút lệnh bên dưới!');
         }
@@ -899,7 +925,7 @@ function App() {
               {interimText || transcript ? (
                 <div className="mic-transcript-quote">“{interimText || transcript}”</div>
               ) : (
-                <p className="mic-subtext">Đang lắng nghe khẩu lệnh của bạn...</p>
+                <p className="mic-subtext">Đang lắng nghe... Hãy nói hoặc chạm lại micro để gửi ngay</p>
               )}
             </div>
           ) : (
@@ -1484,6 +1510,33 @@ function App() {
                       }}
                       placeholder="sk-..."
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cài đặt Thiết bị Microphone */}
+              <div className="form-group-item supabase-config-card" style={{ marginTop: '12px' }}>
+                <div className="form-item-header-row">
+                  <label className="form-item-label">Thiết bị Microphone</label>
+                  <span className="backend-status-tag online">
+                    {audioDevices.length > 0 ? `🟢 ${audioDevices.length} Thiết bị` : '⚪ Mặc định'}
+                  </span>
+                </div>
+                <div className="form-vertical-inputs">
+                  <div className="input-with-label">
+                    <span className="input-micro-label">Chọn Microphone thu âm</span>
+                    <select
+                      className="form-text-input"
+                      value={selectedDeviceId}
+                      onChange={(e) => setSelectedDeviceId(e.target.value)}
+                    >
+                      <option value="">-- Mặc định hệ thống --</option>
+                      {audioDevices.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>
+                          {d.label || `Microphone (${d.deviceId.slice(0, 8)})`}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

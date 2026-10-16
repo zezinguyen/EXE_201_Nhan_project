@@ -195,22 +195,24 @@ export async function testMicrophone(deviceId, {
         audio: {
           deviceId: { exact: deviceId },
           autoGainControl: true,
-          echoCancellation: false,
-          noiseSuppression: false
+          echoCancellation: true,
+          noiseSuppression: true
         }
       });
       tryConstraints.push({
         audio: {
           deviceId: { ideal: deviceId },
-          autoGainControl: true
+          autoGainControl: true,
+          echoCancellation: true,
+          noiseSuppression: true
         }
       });
     }
     tryConstraints.push({
       audio: {
         autoGainControl: true,
-        echoCancellation: false,
-        noiseSuppression: false
+        echoCancellation: true,
+        noiseSuppression: true
       }
     });
     tryConstraints.push({ audio: true });
@@ -330,22 +332,24 @@ export async function startAudioCapture({
       audio: {
         deviceId: { exact: deviceId },
         autoGainControl: true,
-        echoCancellation: false,
-        noiseSuppression: false
+        echoCancellation: true,
+        noiseSuppression: true
       }
     });
     tryConstraints.push({
       audio: {
         deviceId: { ideal: deviceId },
-        autoGainControl: true
+        autoGainControl: true,
+        echoCancellation: true,
+        noiseSuppression: true
       }
     });
   }
   tryConstraints.push({
     audio: {
       autoGainControl: true,
-      echoCancellation: false,
-      noiseSuppression: false
+      echoCancellation: true,
+      noiseSuppression: true
     }
   });
   tryConstraints.push({ audio: true });
